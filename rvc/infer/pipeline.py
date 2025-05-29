@@ -524,6 +524,11 @@ class Pipeline:
             print("Feats del modelo again:",feats_pretodo.shape)
             fname = unique_file(f"{pathname}/feats_pre_index_{basefilename}", "csv")
             exportable = pd.DataFrame(feats_pretodo[0].cpu())
+
+            # TODO read this from above
+            PADDING = 50
+            exportable = exportable[PADDING:-PADDING] # remove padding 
+            
             #p_len = min(audio0.shape[0] // self.window, feats_pretodo.shape[1])
             #exportable['pitch']=pitchf[0, :p_len].cpu()
             #exportable['rms']=librosa.feature.rms(audio0,hop_length=160)[0, :p_len]
