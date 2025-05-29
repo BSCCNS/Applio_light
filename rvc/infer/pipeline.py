@@ -10,8 +10,9 @@ import librosa
 import numpy as np
 from scipy import signal
 from torch import Tensor
-### SAVE EMBEDDINGS
+### EMBEDDINGS
 import pandas as pd
+import joblib
 
 now_dir = os.getcwd()
 sys.path.append(now_dir)
@@ -38,6 +39,10 @@ SAMPLE_RATE = 16000  # Hz
 bh, ah = signal.butter(
     N=FILTER_ORDER, Wn=CUTOFF_FREQUENCY, btype="highpass", fs=SAMPLE_RATE
 )
+
+# UMAP SURROGATE
+path_umap_surr = '/Users/tomasandrade/Documents/BSC/ICHOIR/Applio_light/assets/umap/umap_n100_3D_SURR.sav'
+umap_surrogate = joblib.load(path_umap_surr)
 
 input_audio_path2wav = {}
 
@@ -522,20 +527,25 @@ class Pipeline:
 
             #####
             print("Feats del modelo again:",feats_pretodo.shape)
-            fname = unique_file(f"{pathname}/feats_pre_index_{basefilename}", "csv")
+            fname = unique_file(f"{pathname}/feats_3d_{basefilename}", "csv")
             exportable = pd.DataFrame(feats_pretodo[0].cpu())
 
-            # TODO read this from above
+            # TODO read value of padding from parameters above
+            # TODO simplify extraction of feats (no need to go through pandas, etc)
             PADDING = 50
             exportable = exportable[PADDING:-PADDING] # remove padding 
-            
+
+            feats_3D = umap_surrogate.predict(exportable.values)
+
+            feats_3D.to_csv(fname)
+
             #p_len = min(audio0.shape[0] // self.window, feats_pretodo.shape[1])
             #exportable['pitch']=pitchf[0, :p_len].cpu()
             #exportable['rms']=librosa.feature.rms(audio0,hop_length=160)[0, :p_len]
             #spectrum = pd.DataFrame(librosa.feature.mfcc(audio0,hop_length=160)[:, :p_len]).T
             #spectrum.columns = ["mfcc"+str(i) for i in range(spectrum.shape[1])]
             #exportable = pd.concat([exportable, spectrum], axis=1)
-            exportable.to_csv(fname)
+            #exportable.to_csv(fname)
 
             #for c in range(4):
             #    fname = unique_file(pathname+f"infer_{c}_{basefilename}", "csv")
