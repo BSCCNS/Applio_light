@@ -537,6 +537,7 @@ class Pipeline:
 
             feats_3D = umap_surrogate.predict(exportable.values)
 
+            print(f'Saving umap-projected 3d features to {fname}')
             feats_3D.to_csv(fname)
 
             #p_len = min(audio0.shape[0] // self.window, feats_pretodo.shape[1])
