@@ -10,8 +10,6 @@ import librosa
 import numpy as np
 from scipy import signal
 from torch import Tensor
-### SAVE EMBEDDINGS
-import pandas as pd
 
 now_dir = os.getcwd()
 sys.path.append(now_dir)
@@ -23,20 +21,11 @@ import logging
 
 logging.getLogger("faiss").setLevel(logging.WARNING)
 
-import itertools
-def unique_file(basename, ext):
-    actualname = f"{basename}_00000.{ext}" 
-    c = itertools.count()
-    while os.path.exists(actualname):
-        actualname = f"{basename}_{str(next(c)).zfill(5)}.{ext}" 
-    return actualname
-
-# Constants for high-pass filter
 FILTER_ORDER = 5
 CUTOFF_FREQUENCY = 48  # Hz
 SAMPLE_RATE = 16000  # Hz
 bh, ah = signal.butter(
-    N=FILTER_ORDER, Wn=CUTOFF_FREQUENCY, btype="highpass", fs=SAMPLE_RATE
+    N=FILTER_ORDER, Wn=CUTOFF_FREQUENCY, btype="high", fs=SAMPLE_RATE
 )
 
 input_audio_path2wav = {}
@@ -53,7 +42,7 @@ class AudioProcessor:
         target_audio: np.ndarray,
         target_rate: int,
         rate: float,
-    ) -> np.ndarray:
+    ):
         """
         Adjust the RMS level of target_audio to match the RMS of source_audio, with a given blending rate.
 
@@ -140,12 +129,10 @@ class Pipeline:
             tgt_sr: The target sampling rate for the output audio.
             config: A configuration object containing various parameters for the pipeline.
         """
-        print(f'tgt_sr {tgt_sr}')
         self.x_pad = config.x_pad
         self.x_query = config.x_query
         self.x_center = config.x_center
         self.x_max = config.x_max
-        #self.is_half = config.is_half
         self.sample_rate = 16000
         self.window = 160
         self.t_pad = self.sample_rate * self.x_pad
@@ -220,7 +207,6 @@ class Pipeline:
         self.note_dict = self.autotune.note_dict
         self.model_rmvpe = RMVPE0Predictor(
             os.path.join("rvc", "models", "predictors", "rmvpe.pt"),
-            #is_half=self.is_half,
             device=self.device,
         )
 
@@ -297,7 +283,7 @@ class Pipeline:
         if methods_str:
             methods = [method.strip() for method in methods_str.group(1).split("+")]
         f0_computation_stack = []
-        print(f"Calculating f0 pitch estimations for methods {str(methods)}")
+        print(f"Calculating f0 pitch estimations for methods: {', '.join(methods)}")
         x = x.astype(np.float32)
         x /= np.quantile(np.abs(x), 0.999)
         for method in methods:
@@ -339,7 +325,6 @@ class Pipeline:
         p_len,
         pitch,
         f0_method,
-        filter_radius,
         hop_length,
         f0_autotune,
         f0_autotune_strength,
@@ -354,7 +339,6 @@ class Pipeline:
             p_len: Desired length of the F0 output.
             pitch: Key to adjust the pitch of the F0 contour.
             f0_method: Method to use for F0 estimation (e.g., "crepe").
-            filter_radius: Radius for median filtering the F0 contour.
             hop_length: Hop length for F0 estimation methods.
             f0_autotune: Whether to apply autotune to the F0 contour.
             inp_f0: Optional input F0 contour to use instead of estimating.
@@ -415,7 +399,7 @@ class Pipeline:
         ) + 1
         f0_mel[f0_mel <= 1] = 1
         f0_mel[f0_mel > 255] = 255
-        f0_coarse = np.rint(f0_mel).astype(np.int32)
+        f0_coarse = np.rint(f0_mel).astype(int)
 
         return f0_coarse, f0bak
 
@@ -432,7 +416,6 @@ class Pipeline:
         index_rate,
         version,
         protect,
-        basefilename=""
     ):
         """
         Performs voice conversion on a given audio segment.
@@ -447,38 +430,21 @@ class Pipeline:
             index: FAISS index for speaker embedding retrieval.
             big_npy: Speaker embeddings stored in a NumPy array.
             index_rate: Blending rate for speaker embedding retrieval.
-            version: Model version ("v1" or "v2").
+            version: Model version (Keep to support old models).
             protect: Protection level for preserving the original pitch.
         """
         with torch.no_grad():
             pitch_guidance = pitch != None and pitchf != None
             # prepare source audio
-            # feats = (
-            #     torch.from_numpy(audio0).half()
-            #     if self.is_half
-            #     else torch.from_numpy(audio0).float()
-            # )
             feats = torch.from_numpy(audio0).float()
             feats = feats.mean(-1) if feats.dim() == 2 else feats
             assert feats.dim() == 1, feats.dim()
             feats = feats.view(1, -1).to(self.device)
             # extract features
-        
             feats = model(feats)["last_hidden_state"]
-            feats_pretodo = feats.clone()
-            
-            # print("Feats del modelo:",feats_pretodo.shape)
-            # print("Tamano audio:",audio0.shape)
-            # print(f'self.t_pad_tgt {self.t_pad_tgt}')
-            # print(f'self.x_pad {self.x_pad}')
-            #import soundfile as sf
-            #sf.write(f'{pathname}/test_wav.wav', audio0, 16000, 'PCM_24')
-
             feats = (
                 model.final_proj(feats[0]).unsqueeze(0) if version == "v1" else feats
             )
-            
-
             # make a copy for pitch guidance and protection
             feats0 = feats.clone() if pitch_guidance else None
             if (
@@ -493,7 +459,6 @@ class Pipeline:
             )
             # adjust the length if the audio is short
             p_len = min(audio0.shape[0] // self.window, feats.shape[1])
-            #import pdb; pdb.set_trace()
             if pitch_guidance:
                 feats0 = F.interpolate(feats0.permute(0, 2, 1), scale_factor=2).permute(
                     0, 2, 1
@@ -511,51 +476,24 @@ class Pipeline:
             else:
                 pitch, pitchf = None, None
             p_len = torch.tensor([p_len], device=self.device).long()
-            infer_temp = net_g.infer(feats, p_len, pitch, pitchf, sid)
-
-            ### SAVE EMBEDDINGS after index correction
-            #    
-            #pathname = "/Users/fcucchietti/tmp/rvc_latent_pruebas/latents/"
-            #pathname = "/Users/tomasandrade/Documents/BSC/ICHOIR/fork
-            # /Retrieval-based-Voice-Conversion-WebUI/data/1_16k_wavs_features"
-            pathname = "/Users/tomasandrade/Documents/BSC/ICHOIR/Applio_light/assets/features"
-
-            #####
-            print("Feats del modelo again:",feats_pretodo.shape)
-            fname = unique_file(f"{pathname}/feats_pre_index_{basefilename}", "csv")
-            exportable = pd.DataFrame(feats_pretodo[0].cpu())
-            #p_len = min(audio0.shape[0] // self.window, feats_pretodo.shape[1])
-            #exportable['pitch']=pitchf[0, :p_len].cpu()
-            #exportable['rms']=librosa.feature.rms(audio0,hop_length=160)[0, :p_len]
-            #spectrum = pd.DataFrame(librosa.feature.mfcc(audio0,hop_length=160)[:, :p_len]).T
-            #spectrum.columns = ["mfcc"+str(i) for i in range(spectrum.shape[1])]
-            #exportable = pd.concat([exportable, spectrum], axis=1)
-            exportable.to_csv(fname)
-
-            #for c in range(4):
-            #    fname = unique_file(pathname+f"infer_{c}_{basefilename}", "csv")
-            #    pd.DataFrame(infer_temp[2][c][0].cpu()).to_csv(fname)
-
             audio1 = (
-                (infer_temp[0][0, 0])
+                (net_g.infer(feats.float(), p_len, pitch, pitchf.float(), sid)[0][0, 0])
                 .data.cpu()
                 .float()
                 .numpy()
             )
             # clean up
-            del feats, feats0, p_len, feats_pretodo
+            del feats, feats0, p_len
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
         return audio1
 
     def _retrieve_speaker_embeddings(self, feats, index, big_npy, index_rate):
         npy = feats[0].cpu().numpy()
-        #npy = npy.astype("float32") if self.is_half else npy
         score, ix = index.search(npy, k=8)
         weight = np.square(1 / score)
         weight /= weight.sum(axis=1, keepdims=True)
         npy = np.sum(big_npy[ix] * np.expand_dims(weight, axis=2), axis=1)
-        #npy = npy.astype("float16") if self.is_half else npy
         feats = (
             torch.from_numpy(npy).unsqueeze(0).to(self.device) * index_rate
             + (1 - index_rate) * feats
@@ -573,7 +511,6 @@ class Pipeline:
         file_index,
         index_rate,
         pitch_guidance,
-        filter_radius,
         volume_envelope,
         version,
         protect,
@@ -581,7 +518,6 @@ class Pipeline:
         f0_autotune,
         f0_autotune_strength,
         f0_file,
-        basefilename=""
     ):
         """
         The main pipeline function for performing voice conversion.
@@ -597,7 +533,6 @@ class Pipeline:
             file_index: Path to the FAISS index file for speaker embedding retrieval.
             index_rate: Blending rate for speaker embedding retrieval.
             pitch_guidance: Whether to use pitch guidance during voice conversion.
-            filter_radius: Radius for median filtering the F0 contour.
             tgt_sr: Target sampling rate for the output audio.
             resample_sr: Resampling rate for the output audio.
             volume_envelope: Blending rate for adjusting the RMS level of the output audio.
@@ -656,7 +591,6 @@ class Pipeline:
                 p_len,
                 pitch,
                 f0_method,
-                filter_radius,
                 hop_length,
                 f0_autotune,
                 f0_autotune_strength,
@@ -684,7 +618,6 @@ class Pipeline:
                         index_rate,
                         version,
                         protect,
-                        basefilename=basefilename
                     )[self.t_pad_tgt : -self.t_pad_tgt]
                 )
             else:
@@ -701,7 +634,6 @@ class Pipeline:
                         index_rate,
                         version,
                         protect,
-                        basefilename=basefilename
                     )[self.t_pad_tgt : -self.t_pad_tgt]
                 )
             s = t
@@ -719,7 +651,6 @@ class Pipeline:
                     index_rate,
                     version,
                     protect,
-                    basefilename=basefilename
                 )[self.t_pad_tgt : -self.t_pad_tgt]
             )
         else:
@@ -736,7 +667,6 @@ class Pipeline:
                     index_rate,
                     version,
                     protect,
-                    basefilename=basefilename
                 )[self.t_pad_tgt : -self.t_pad_tgt]
             )
         audio_opt = np.concatenate(audio_opt)
@@ -744,15 +674,6 @@ class Pipeline:
             audio_opt = AudioProcessor.change_rms(
                 audio, self.sample_rate, audio_opt, self.sample_rate, volume_envelope
             )
-        # if resample_sr >= self.sample_rate and tgt_sr != resample_sr:
-        #    audio_opt = librosa.resample(
-        #        audio_opt, orig_sr=tgt_sr, target_sr=resample_sr
-        #    )
-        # audio_max = np.abs(audio_opt).max() / 0.99
-        # max_int16 = 32768
-        # if audio_max > 1:
-        #    max_int16 /= audio_max
-        # audio_opt = (audio_opt * 32768).astype(np.int16)
         audio_max = np.abs(audio_opt).max() / 0.99
         if audio_max > 1:
             audio_opt /= audio_max
