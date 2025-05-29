@@ -537,8 +537,10 @@ class Pipeline:
 
             feats_3D = umap_surrogate.predict(exportable.values)
 
+            df_feats_3D = pd.DataFrame(feats_3D)
+
             print(f'Saving umap-projected 3d features to {fname}')
-            feats_3D.to_csv(fname)
+            df_feats_3D.to_csv(fname)
 
             #p_len = min(audio0.shape[0] // self.window, feats_pretodo.shape[1])
             #exportable['pitch']=pitchf[0, :p_len].cpu()
