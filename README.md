@@ -7,9 +7,11 @@ Run the installation script based on your operating system:
 - **Windows:** Double-click `run-install.bat`.
 - **Linux/macOS:** Execute `run-install.sh`.
 
+This creates the venv and places a .venv/ folder inside the project folder. 
+
 ### 2. Running Applio
 
-Start Applio using:
+Checkout the `original-version` branch. Start Applio using:
 
 - **Windows:** Double-click `run-applio.bat`.
 - **Linux/macOS:** Run `run-applio.sh`.
@@ -21,6 +23,7 @@ This launches the Gradio interface in your default browser.
 To convert an audio in wav format, produce the features file, and send features to unreal via UDP
 
 ```
+$ source .venv/bin/activate
 $ python infer_script.py
 ```
 
