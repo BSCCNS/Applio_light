@@ -467,23 +467,35 @@ class Pipeline:
             feats = feats.mean(-1) if feats.dim() == 2 else feats
             assert feats.dim() == 1, feats.dim()
             feats = feats.view(1, -1).to(self.device)
-            # extract features
-        
-            feats = model(feats)["last_hidden_state"]
-            feats_pretodo = feats.clone()
-            
-            # print("Feats del modelo:",feats_pretodo.shape)
-            # print("Tamano audio:",audio0.shape)
-            # print(f'self.t_pad_tgt {self.t_pad_tgt}')
-            # print(f'self.x_pad {self.x_pad}')
-            #import soundfile as sf
-            #sf.write(f'{pathname}/test_wav.wav', audio0, 16000, 'PCM_24')
 
+            feats = model(feats)["last_hidden_state"]
+
+            ##########################################################
+            # EXTRACT FEATURES PRE INDEX
+            feats_pretodo = feats.clone()
+
+            pathname = "/Users/tomasandrade/Documents/BSC/ICHOIR/Applio_light/assets/features"
+
+            print("Feats del modelo again:",feats_pretodo.shape)
+            fname = unique_file(f"{pathname}/feats_3d_{basefilename}", "csv")
+            exportable = pd.DataFrame(feats_pretodo[0].cpu())
+
+            # TODO read value of padding from parameters above
+            # TODO simplify extraction of feats (no need to go through pandas, etc)
+            PADDING = 50
+            exportable = exportable[PADDING:-PADDING] # remove padding 
+
+            feats_3D = umap_surrogate.predict(exportable.values)
+            df_feats_3D = pd.DataFrame(feats_3D)
+
+            print(f'Saving umap-projected 3d features to {fname}')
+            df_feats_3D.to_csv(fname)
+            ##########################################################
+            
             feats = (
                 model.final_proj(feats[0]).unsqueeze(0) if version == "v1" else feats
             )
             
-
             # make a copy for pitch guidance and protection
             feats0 = feats.clone() if pitch_guidance else None
             if (
@@ -517,42 +529,6 @@ class Pipeline:
                 pitch, pitchf = None, None
             p_len = torch.tensor([p_len], device=self.device).long()
             infer_temp = net_g.infer(feats, p_len, pitch, pitchf, sid)
-
-            ### SAVE EMBEDDINGS after index correction
-            #    
-            #pathname = "/Users/fcucchietti/tmp/rvc_latent_pruebas/latents/"
-            #pathname = "/Users/tomasandrade/Documents/BSC/ICHOIR/fork
-            # /Retrieval-based-Voice-Conversion-WebUI/data/1_16k_wavs_features"
-            pathname = "/Users/tomasandrade/Documents/BSC/ICHOIR/Applio_light/assets/features"
-
-            #####
-            print("Feats del modelo again:",feats_pretodo.shape)
-            fname = unique_file(f"{pathname}/feats_3d_{basefilename}", "csv")
-            exportable = pd.DataFrame(feats_pretodo[0].cpu())
-
-            # TODO read value of padding from parameters above
-            # TODO simplify extraction of feats (no need to go through pandas, etc)
-            PADDING = 50
-            exportable = exportable[PADDING:-PADDING] # remove padding 
-
-            feats_3D = umap_surrogate.predict(exportable.values)
-
-            df_feats_3D = pd.DataFrame(feats_3D)
-
-            print(f'Saving umap-projected 3d features to {fname}')
-            df_feats_3D.to_csv(fname)
-
-            #p_len = min(audio0.shape[0] // self.window, feats_pretodo.shape[1])
-            #exportable['pitch']=pitchf[0, :p_len].cpu()
-            #exportable['rms']=librosa.feature.rms(audio0,hop_length=160)[0, :p_len]
-            #spectrum = pd.DataFrame(librosa.feature.mfcc(audio0,hop_length=160)[:, :p_len]).T
-            #spectrum.columns = ["mfcc"+str(i) for i in range(spectrum.shape[1])]
-            #exportable = pd.concat([exportable, spectrum], axis=1)
-            #exportable.to_csv(fname)
-
-            #for c in range(4):
-            #    fname = unique_file(pathname+f"infer_{c}_{basefilename}", "csv")
-            #    pd.DataFrame(infer_temp[2][c][0].cpu()).to_csv(fname)
 
             audio1 = (
                 (infer_temp[0][0, 0])
