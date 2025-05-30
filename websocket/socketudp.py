@@ -44,13 +44,8 @@ class SocketUDP():
         else:
             close_it()
 
-    def send(self, message, frame=None):
-        """Manda el mensaje, utilizando el número de frame como ID.
-
-        Al ser comunicación UDP, para detectar duplicados o envíos fuera de orden,
-        se usa el número de frame como ID, para poder descartarlo en el receptor.
-
-        El parámetro frame es opcional. Si no se especifica, se usa un ID autoincremental.
+    def send(self, message_dict):
+        """
         """
 
         current = time.time_ns()
@@ -59,58 +54,40 @@ class SocketUDP():
         logging.debug(f"Last   : {self.last_call}")
 
         if current - self.last_call < self.min_time:
-            logging.warning(f"Llamadas muy próximas. Ignorando frame {frame}")
+            logging.warning(f"Llamadas muy próximas. Ignorando frame")
             return 
-
-        if self._debug is not None:
-            if not self._debug(message):
-                return
             
-        if frame is None:
-            self._frame += 1
-            frame = self._frame 
-
-        data = {'frame': frame,
-                'data': message}
-
-        self.socket.sendto((json.dumps(data) + '\n').encode(), self.address)
+        self.socket.sendto((json.dumps(message_dict)).encode(), self.address)
         self.last_call = current
 
-        logging.debug(f"Sent message: {message}")
+        logging.debug(f"Message sent")
 
-def _debug_vr(message):
-    """
-    Analiza el JSON que se envía para la experiencia VR.
-    Devuelve True si es correcto, False en caso contrario.
-    """
-    logging.debug(f"Sending message: {message}")
-    for key in message.keys():
-        logging.debug(f"Checking key: {key}")
-        if not str(key).isdecimal():
-            logging.error(f"Key {key} is not valid.")
-            return False
-        for id, points in message[key].items():
-            if id < 0 or id > 17:
-                logging.error(f"Key {key}:{id} is not valid.")
-                return False
-            if len(points) != 3:
-                logging.error(f"Point {points} doesn't have 3 values.")
-                return False
-            for point in points:
-                pass # Check min/max values
+def send_wf_point(y):
+    d = {'type': 'waveform',
+        'message': {'data': y}}
     
-    return True
-
-def send_array(array, i):
     with SocketUDP("localhost", debug= None) as socket:
-        socket.send(list(array), i)
+        socket.send(d)
+
+def send_ls_slice(array_xyz, frame = 0):
+    d = {'type': 'latent',
+        'message': {'frame': frame, 'data': array_xyz}}
+
+    with SocketUDP("localhost", debug= None) as socket:    
+        socket.send(d)
+
+def send_ls_finish():
+    d = {'type': 'end_latent',
+        'message': {'frame': -1}}
+    with SocketUDP("localhost", debug= None) as socket:
+        socket.send(d)
 
 if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO)
     logging.debug("Start")
 
-    with SocketUDP("localhost", debug=_debug_vr) as socket:
+    with SocketUDP("localhost", debug=None) as socket:
 
         for i in range(100):
             print(i)
