@@ -90,37 +90,12 @@ def send_ls_finish():
         socket.send(d)
 
 if __name__ == "__main__":
-    # data = [[1,2,3],[4,5,6],[7,8,9]]
-    # array = np.array(data)
-
-    # logging.basicConfig(level=logging.INFO)
-    # logging.info("Start")
-
-    # send_ls_array(array)
-
-    # logging.info("Array sent")
 
     print('sending point')
     send_wf_point(1.1)
 
     print('sending array')
-
     data = [[1.,2.,3.],[4.,5.,6.],[7.,8.,9.]]
     array = np.array(data)
 
-    logging.basicConfig(level=logging.INFO)
-    logging.info("Start")
-
     send_ls_array(array)
-
-    logging.info("Array sent")
-
-#     logging.basicConfig(level=logging.INFO)
-#     logging.debug("Start")
-
-#     with SocketUDP("localhost", debug=None) as socket:
-
-#         for i in range(100):
-#             print(i)
-#             time.sleep(0.005)
-#             socket.send({0: {random.randint(0, 10): [random.random(), random.random(), random.random()]}}, i)
