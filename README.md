@@ -24,8 +24,10 @@ To convert an audio in wav format, produce the features file, and send features 
 
 ```
 $ source .venv/bin/activate
-$ python infer_script.py
+$ python infer_script.py --input_path <input_path> --output_path <output_path> --pitch <pitch>
 ```
+
+Here pitch is an int between -24, 24
 
 ### 4. Communications with Unreal 
 
