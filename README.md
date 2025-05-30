@@ -18,6 +18,12 @@ This launches the Gradio interface in your default browser.
 
 ### 3. Script 
 
+To convert an audio in wav format, produce the features file, and send features to unreal via UDP
+
+```
+$ python infer_script.py
+```
+
 ### 4. Communications with Unreal 
 
 - **Waveform:** real time while user is recording audio:
