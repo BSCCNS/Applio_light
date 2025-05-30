@@ -1,53 +1,3 @@
-<h1 align="center">
-  <a href="https://applio.org" target="_blank"><img src="https://github.com/IAHispano/Applio/assets/133521603/78e975d8-b07f-47ba-ab23-5a31592f322a" alt="Applio"></a>
-</h1>
-
-<p align="center">
-    <img alt="Contributors" src="https://img.shields.io/github/contributors/iahispano/applio?style=for-the-badge&color=FFFFFF" />
-    <img alt="Release" src="https://img.shields.io/github/release/iahispano/applio?style=for-the-badge&color=FFFFFF" />
-    <img alt="Stars" src="https://img.shields.io/github/stars/iahispano/applio?style=for-the-badge&color=FFFFFF" />
-    <img alt="Fork" src="https://img.shields.io/github/forks/iahispano/applio?style=for-the-badge&color=FFFFFF" />
-    <img alt="Issues" src="https://img.shields.io/github/issues/iahispano/applio?style=for-the-badge&color=FFFFFF" />
-</p>
-
-<p align="center">A simple, high-quality voice conversion tool, focused on ease of use and performance.</p>
-
-<p align="center">
-  <a href="https://applio.org" target="_blank">🌐 Website</a>
-  •
-  <a href="https://docs.applio.org" target="_blank">📚 Documentation</a>
-  •
-  <a href="https://discord.gg/urxFjYmYYh" target="_blank">☎️ Discord</a>
-</p>
-
-<p align="center">
-  <a href="https://github.com/IAHispano/Applio-Plugins" target="_blank">🛒 Plugins</a>
-  •
-  <a href="https://huggingface.co/IAHispano/Applio/tree/main/Compiled" target="_blank">📦 Compiled</a>
-  •
-  <a href="https://applio.org/playground" target="_blank">🎮 Playground</a>
-  •
-  <a href="https://colab.research.google.com/github/iahispano/applio/blob/master/assets/Applio.ipynb" target="_blank">🔎 Google Colab (UI)</a>
-  •
-  <a href="https://colab.research.google.com/github/iahispano/applio/blob/master/assets/Applio_NoUI.ipynb" target="_blank">🔎 Google Colab (No UI)</a>
-</p>
-
-## Introduction
-
-Applio is a powerful voice conversion tool focused on simplicity, quality, and performance. Whether you're an artist, developer, or researcher, Applio offers a straightforward platform for high-quality voice transformations. Its flexible design allows for customization through plugins and configurations, catering to a wide range of projects.
-
-## Terms of Use and Commercial Usage
-
-Using Applio responsibly is essential. Here’s a summary of our Terms of Use and commercial guidelines:
-
-- Users must respect copyrights, intellectual property, and privacy rights.
-- Applio is intended for lawful and ethical purposes, including personal, academic, and investigative projects.
-- Commercial usage is permitted, provided users adhere to legal and ethical guidelines, secure appropriate rights and permissions, and comply with the [MIT license](./LICENSE).
-
-For commercial purposes, we recommend contacting us at [support@applio.org](mailto:support@applio.org) to ensure ethical use. All audio files generated with Applio must comply with applicable copyrights. If you find Applio helpful, consider supporting its development [through a donation](https://ko-fi.com/iahispano).
-
-By using Applio, you accept full responsibility for adhering to these terms. Applio and its contributors are not liable for misuse. For more details, please refer to the full [Terms of Use](./TERMS_OF_USE.md).
-
 ## Getting Started
 
 ### 1. Installation
@@ -66,24 +16,36 @@ Start Applio using:
 
 This launches the Gradio interface in your default browser.
 
-### 3. Optional: TensorBoard Monitoring
+### 3. Script 
 
-To monitor training or visualize data:
+### 4. Communications with Unreal 
 
-- **Windows:** Run `run-tensorboard.bat`.
-- **Linux/macOS:** Run `run-tensorboard.sh`.
+- **Waveform:** real time while user is recording audio:
 
-For more detailed instructions, visit the [documentation](https://docs.applio.org).
+```
+{"type": "waveform",
+"message": {"data": 1.0}
+}
+```
 
-## References
+Send a series of these until full time is completed.
 
-Applio is made possible thanks to these projects and their references:
+- **Latent space:** after audio conversion and feature extraction has been performed
 
-- [gradio-screen-recorder](https://huggingface.co/spaces/gstaff/gradio-screen-recorder) by gstaff
-- [rvc-cli](https://github.com/blaisewf/rvc-cli) by blaisewf
+```
+{"type": "latent",
+"message": 
+	{"frame": 0,
+	"data": [1.0, 1.0, 1.0]}
+}
+```
 
-### Contributors
+Send a series of these, and at the end a finish message in case the length is variable (it should be approximately the same but to avoid issues)
 
-<a href="https://github.com/IAHispano/Applio/graphs/contributors" target="_blank">
-  <img src="https://contrib.rocks/image?repo=IAHispano/Applio" />
-</a>
+- **Finish message:**
+
+{"type": "end_latent",
+"message": 
+	{"frame": -1,
+	"data": [1.0, 1.0, 1.0]}
+}
