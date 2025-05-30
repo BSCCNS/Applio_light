@@ -44,8 +44,10 @@ Send a series of these, and at the end a finish message in case the length is va
 
 - **Finish message:**
 
+```
 {"type": "end_latent",
 "message": 
 	{"frame": -1,
 	"data": [1.0, 1.0, 1.0]}
 }
+```
