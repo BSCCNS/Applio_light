@@ -76,7 +76,9 @@ def send_ls_array(array):
 
 def send_ls_slice(array_xyz, frame = 0):
     d = {'type': 'latent',
-        'message': {'frame': frame, 'data': array_xyz}}
+        'message': {'frame': frame, 'data': array_xyz.tolist()}}
+        #'message': {'frame': frame, 'data': [1,2,3]}
+        #}
 
     with SocketUDP("localhost", debug= None) as socket:    
         socket.send(d)
@@ -88,12 +90,27 @@ def send_ls_finish():
         socket.send(d)
 
 if __name__ == "__main__":
-    data = [[1,2,3],[4,5,6],[7,8,9]]
+    # data = [[1,2,3],[4,5,6],[7,8,9]]
+    # array = np.array(data)
+
+    # logging.basicConfig(level=logging.INFO)
+    # logging.info("Start")
+
+    # send_ls_array(array)
+
+    # logging.info("Array sent")
+
+    print('sending point')
+    send_wf_point(1.1)
+
+    print('sending array')
+
+    data = [[1.,2.,3.],[4.,5.,6.],[7.,8.,9.]]
     array = np.array(data)
 
     logging.basicConfig(level=logging.INFO)
     logging.info("Start")
-    
+
     send_ls_array(array)
 
     logging.info("Array sent")
