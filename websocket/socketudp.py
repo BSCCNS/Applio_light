@@ -82,14 +82,14 @@ def send_ls_finish():
     with SocketUDP("localhost", debug= None) as socket:
         socket.send(d)
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
 
-    logging.basicConfig(level=logging.INFO)
-    logging.debug("Start")
+#     logging.basicConfig(level=logging.INFO)
+#     logging.debug("Start")
 
-    with SocketUDP("localhost", debug=None) as socket:
+#     with SocketUDP("localhost", debug=None) as socket:
 
-        for i in range(100):
-            print(i)
-            time.sleep(0.005)
-            socket.send({0: {random.randint(0, 10): [random.random(), random.random(), random.random()]}}, i)
+#         for i in range(100):
+#             print(i)
+#             time.sleep(0.005)
+#             socket.send({0: {random.randint(0, 10): [random.random(), random.random(), random.random()]}}, i)
