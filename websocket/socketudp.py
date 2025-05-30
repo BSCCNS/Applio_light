@@ -2,11 +2,11 @@ import logging
 import json
 import random
 import time
+import numpy as np
 from socket import *
 
 # Tiempo mínimo entre un envío y el siguiente
 MIN_TIME = 4200000 # 240fps
-
 
 class SocketUDP():
     """Clase para enviar datos por UDP
@@ -69,6 +69,11 @@ def send_wf_point(y):
     with SocketUDP("localhost", debug= None) as socket:
         socket.send(d)
 
+def send_ls_array(array):
+    for i, row in enumerate(array):
+        send_ls_slice(row, frame = i)
+    send_ls_finish()
+
 def send_ls_slice(array_xyz, frame = 0):
     d = {'type': 'latent',
         'message': {'frame': frame, 'data': array_xyz}}
@@ -82,7 +87,16 @@ def send_ls_finish():
     with SocketUDP("localhost", debug= None) as socket:
         socket.send(d)
 
-# if __name__ == "__main__":
+if __name__ == "__main__":
+    data = [[1,2,3],[4,5,6],[7,8,9]]
+    array = np.array(data)
+
+    logging.basicConfig(level=logging.INFO)
+    logging.info("Start")
+    
+    send_ls_array(array)
+
+    logging.info("Array sent")
 
 #     logging.basicConfig(level=logging.INFO)
 #     logging.debug("Start")
