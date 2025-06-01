@@ -64,10 +64,8 @@ def record_audio():
         params['output_path'] = f"{AUDIO_FOLDER}/output_trained_{timestamp}.wav"
         params['pitch'] = USER_PITCH
 
-        print('--------------- params')
-        print(params)
+        print('running inference script (extract LS)')
         run_infer_script(**params)
-
 
         print('reading array')
         feats_3d = pd.read_csv(f'{FEATURE_FOLDER}/feats_3d.csv', index_col=0)
