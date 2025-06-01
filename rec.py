@@ -19,6 +19,8 @@ CHUNK_SAMPLES = FS * DURATION // CHUNKS
 HOST = "localhost"
 PORT = 65432
 
+USER_PITCH = 0
+
 AUDIO_FOLDER = '/Users/tomasandrade/Documents/BSC/ICHOIR/Applio_light/assets/audios'
 
 def send_amplitudes(chunk):
@@ -57,7 +59,7 @@ def record_audio():
 
         params['input_path'] = OUTPUT_FILE
         params['output_path'] = f"{AUDIO_FOLDER}/output_trained_{timestamp}.wav"
-        params['pitch'] = user_pitch
+        params['pitch'] = USER_PITCH
 
         print('--------------- params')
         print(params)
