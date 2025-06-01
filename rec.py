@@ -1,5 +1,6 @@
 import sounddevice as sd
 import numpy as np
+import pandas as pd
 import librosa
 import socket
 import subprocess
@@ -7,7 +8,7 @@ import threading
 import time
 from pynput import keyboard
 from core import run_infer_script
-from websocket.socketudp import send_wf_point
+from websocket.socketudp import send_wf_point, send_ls_array, send_start_ls_signal
 from params_template import params
 from datetime import datetime
 from scipy.io.wavfile import write
@@ -22,6 +23,8 @@ PORT = 65432
 USER_PITCH = 0
 
 AUDIO_FOLDER = '/Users/tomasandrade/Documents/BSC/ICHOIR/Applio_light/assets/audios'
+
+FEATURE_FOLDER = "/Users/tomasandrade/Documents/BSC/ICHOIR/Applio_light/assets/features"
 
 def send_amplitudes(chunk):
     try:
@@ -65,6 +68,23 @@ def record_audio():
         print(params)
         run_infer_script(**params)
 
+
+        print('reading array')
+        feats_3d = pd.read_csv(f'{FEATURE_FOLDER}/feats_3d.csv', index_col=0)
+
+        print('sending array')
+        send_ls_array(feats_3d.values)
+
+        time.sleep(1.0)
+
+        # Load audio with librosa
+        y, sr = librosa.load(params['output_path'], sr=None)  # sr=None to preserve original sample rate
+
+        print('sending signal to trigger LS viz')
+        send_start_ls_signal()
+
+        # Play it with sounddevice
+        sd.play(y, sr)
         # try:
         #     run_infer_script(**params)
 

@@ -87,6 +87,14 @@ def send_ls_finish():
     with SocketUDP("localhost", debug= None) as socket:
         socket.send(d)
 
+
+def send_start_ls_signal():
+    d = {'type': 'start_latent_viz',
+        'message': {'frame': -1}}
+
+    with SocketUDP("localhost", debug= None) as socket:    
+        socket.send(d)
+
 if __name__ == "__main__":
 
     print('sending point')
