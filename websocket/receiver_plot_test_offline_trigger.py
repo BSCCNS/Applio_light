@@ -1,63 +1,68 @@
 import socket
-import threading
 import json
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-import matplotlib.animation as animation
+
+import pandas as pd
+
+import matplotlib
+matplotlib.use('TkAgg')
+
+UDP_PORT = 8080
+BUFFER_SIZE = 1024
 
 trajectory_points = []
-start_animation = threading.Event()
 
-UDP_PORT = 5005
+# === Receive UDP Messages ===
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock.bind(('0.0.0.0', UDP_PORT))
+print(f"[UDP] Listening on port {UDP_PORT}...")
 
-def udp_listener():
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind(("0.0.0.0", UDP_PORT))
-    print(f"Listening for UDP on port {UDP_PORT}...")
+while True:
+    data, _ = sock.recvfrom(BUFFER_SIZE)
+    try:
+        decoded = json.loads(data.decode())
+        print(decoded)
+        msg_type = decoded.get("type")
+        if msg_type == "latent":
+            point = decoded.get("message", {}).get("data", [])
+            if len(point) == 3:
+                trajectory_points.append(tuple(map(float, point)))
+        elif msg_type == "start_latent_viz":
+            print("[UDP] Received start_viz. Plotting...")
+            break
+    except Exception as e:
+        print(f"[UDP] Error: {e}")
 
-    while True:
-        data, _ = sock.recvfrom(4096)
-        try:
-            msg = json.loads(data.decode().strip())
-            msg_type = msg.get("type")
+# === Plot Once ===
+if trajectory_points:
+    ls_3D_path = '/Users/tomasandrade/Documents/BSC/ICHOIR/Applio_light/assets/features/embedding_n100_3D.csv'
+    df_embed_global = pd.read_csv(ls_3D_path, index_col=0)
 
-            if msg_type == "latent":
-                point = msg.get("message", {}).get("data")
-                if point and len(point) == 3:
-                    trajectory_points.append(tuple(point))
-                else:
-                    print(f"Ignoring malformed trajectory data: {msg}")
-            elif msg_type == "start_latent_viz":
-                print("Received start_viz signal.")
-                start_animation.set()
-            else:
-                print(f"Unknown message type: {msg_type}")
-        except json.JSONDecodeError:
-            print("Received invalid JSON.")
-
-def animate(i, line, ax):
-    if i >= len(trajectory_points):
-        return
-    xs, ys, zs = zip(*trajectory_points[:i+1])
-    line.set_data(xs, ys)
-    line.set_3d_properties(zs)
-
-def run_animation():
-    fig = plt.figure()
+    # === Plot setup ===
+    fig = plt.figure(figsize=(8,8))
+    coord_label = fig.text(0.5, 0.02, "", ha='center', fontsize=14, color='black')
     ax = fig.add_subplot(111, projection='3d')
-    line, = ax.plot([], [], [], lw=2)
+    # ax.set_xlim(-10, 10)
+    # ax.set_ylim(-10, 10)
+    # ax.set_zlim(-10, 10)
 
-    # Optionally adjust limits based on your data
-    ax.set_xlim(-10, 10)
-    ax.set_ylim(-10, 10)
-    ax.set_zlim(-10, 10)
+    ax.set_xlim([-1,15])
+    ax.set_ylim([-1,15])
+    ax.set_zlim([-5,5])
 
-    ani = animation.FuncAnimation(fig, animate, fargs=(line, ax),
-                                  frames=len(trajectory_points), interval=100, repeat=False)
+    ax.scatter(df_embed_global['x'], 
+                df_embed_global['y'], 
+                df_embed_global['z'], 
+                s=0.1, 
+                alpha=0.075)
+
+
+    xs, ys, zs = zip(*trajectory_points)
+    #fig = plt.figure()
+    #ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(xs, ys, zs, c='red')
+    ax.set_title("Received Trajectory")
     plt.show()
-
-if __name__ == "__main__":
-    threading.Thread(target=udp_listener, daemon=True).start()
-    print("Waiting for start_viz signal to animate...")
-    start_animation.wait()
-    run_animation()
+else:
+    print("No points received.")
