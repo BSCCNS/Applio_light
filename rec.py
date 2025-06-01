@@ -21,6 +21,8 @@ PORT = 65432
 
 AUDIO_FOLDER = '/Users/tomasandrade/Documents/BSC/ICHOIR/Applio_light/assets/audios'
 
+user_pitch = input("Enter pitch shift: ")
+
 def send_amplitudes(chunk):
     try:
         chunk_float = librosa.util.buf_to_float(chunk, n_bytes=2)
