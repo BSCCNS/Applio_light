@@ -59,6 +59,7 @@ def record_audio():
 
         params['input_path'] = OUTPUT_FILE
         params['output_path'] = f"{AUDIO_FOLDER}/output_trained_{timestamp}.wav"
+        params['pitch'] = user_pitch
 
         print('--------------- params')
         print(params)
