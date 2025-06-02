@@ -93,7 +93,7 @@ def wait_for_converted_file(converted_filename, wait_cancel_event):
     temp = np.random.rand(500,3)
     temp = [ [float(x) for x in row] for row in temp ]  # Convert to list of lists
     send_message(READYTOPLAY) ## Tell Unreal Engine we are ready to play
-    latent_data = pd.read_csv(str(converted_filename)[:-4]+"_feats_3d.csv")
+    latent_data = pd.read_csv(str(converted_filename)[:-4]+"_feats_3d.csv", index_col=0)
     send_ls_array(latent_data.values)
     screen_clear(f"[✓] Converted file detected: {converted_filename}")
     last_file_created = converted_filename

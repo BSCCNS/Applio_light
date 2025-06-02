@@ -4,7 +4,7 @@ import socket
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 # Bind to port 8080 on all interfaces
-sock.bind(('0.0.0.0', 8080))
+sock.bind(('0.0.0.0', 3002))
 
 print("Listening on UDP port 8080...")
 

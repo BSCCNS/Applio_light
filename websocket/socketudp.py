@@ -86,7 +86,7 @@ def send_ls_array(array):
 ############## Latent Space functions
 def send_ls_slice(array_xyz, frame = 0):
     d = {'type': 'latent',
-        'message': {'frame': frame, 'data': array_xyz}}
+        'message': {'frame': frame, 'data': array_xyz.tolist()}}
 
     with SocketUDP("localhost", debug= None) as socket:    
         socket.send(d)
