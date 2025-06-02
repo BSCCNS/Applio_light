@@ -218,8 +218,10 @@ def record_audio(stdscr):
         stdscr.addstr(1, 0, f"[✓] Saved to {filename}")  
         stdscr.refresh()         
         ### SEND TO CONVERSION
-        time.sleep(3) # TODO delete in production and chango to Applio call
-        cmd = ["cp", str(filename), str(converted_filename)]  # Replace with your actual command
+        #time.sleep(3) # TODO delete in production and chango to Applio call
+        #cmd = ["cp", str(filename), str(converted_filename)]  # Replace with your actual command
+        # TODO add pitch as last argument
+        cmd = ["python infer_script.py", str(filename), str(converted_filename)] 
         stdscr.addstr(1, 0, f"[*] Running conversion asynchronously: {' '.join(cmd)}") 
         stdscr.refresh()
         try:
