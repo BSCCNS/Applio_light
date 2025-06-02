@@ -79,7 +79,7 @@ def send_volume_levels(audio_queue, stop_event):
         screen_clear(line)
 
 def wait_for_converted_file(converted_filename, wait_cancel_event):
-    global waiting_for_file, last_file_created, current_pitch
+    global waiting_for_file, last_file_created
     send_message(CONVERTING) ## Tell Unreal Engine we are converting
     waiting_for_file = True
     screen_clear(f"[*] Waiting for {converted_filename} to appear... (press ctrl-X to cancel)")
@@ -89,9 +89,7 @@ def wait_for_converted_file(converted_filename, wait_cancel_event):
             screen_clear("[x] Waiting for converted file canceled by user.")
             waiting_for_file = False
             return
-        time.sleep(0.05)
-    temp = np.random.rand(500,3)
-    temp = [ [float(x) for x in row] for row in temp ]  # Convert to list of lists
+        time.sleep(0.05)    
     send_message(READYTOPLAY) ## Tell Unreal Engine we are ready to play
     latent_data = pd.read_csv(str(converted_filename)[:-4]+"_feats_3d.csv", index_col=0)
     send_ls_array(latent_data.values)
@@ -105,19 +103,40 @@ def play_wav(filename):
     data, samplerate = sf.read(filename, dtype='float32')
     blocksize = 1024  # Small block for responsive stop
 
+    # def callback(outdata, frames, time, status):
+    #     if play_cancel_event.is_set():
+    #         raise sd.CallbackStop()
+    #     start = callback.pos
+    #     end = start + frames
+    #     if data.ndim == 1:
+    #         outdata[:, 0] = data[start:end]
+    #     else:
+    #         outdata[:] = data[start:end]
+    #     callback.pos = end        
+    #     if end >= len(data):
+    #         playing_file = False
+    #         raise sd.CallbackStop()
+    # callback.pos = 0
+
     def callback(outdata, frames, time, status):
         if play_cancel_event.is_set():
             raise sd.CallbackStop()
         start = callback.pos
         end = start + frames
+        end = min(end, len(data))
+        realframes = end-start
         if data.ndim == 1:
-            outdata[:, 0] = data[start:end]
+            outdata[:,0]=0
+            outdata[:realframes,0]=data[start:end]
         else:
-            outdata[:] = data[start:end]
+            outdata[:]=0
+            outdata[:realframes]=data[start:end]
+
         callback.pos = end        
         if end >= len(data):
             playing_file = False
             raise sd.CallbackStop()
+        
     callback.pos = 0
 
     try:
@@ -153,8 +172,7 @@ def save_to_wav(filename, audio_np):
 
 
 def record_audio():
-    global recording, cancel_requested, wait_cancel_event, waiting_for_file
-
+    global recording, cancel_requested, wait_cancel_event, waiting_for_file, current_pitch
     timestamp = f"{int(time.time())}"
     filename = INPUTFOLDER / f"recording_{timestamp}.wav"
     converted_filename = OUTPUTFOLDER / f"recording_{timestamp}_converted.wav"
@@ -202,9 +220,10 @@ def record_audio():
         save_to_wav(filename, audio_np)
         screen_clear(f"[✓] Saved to {filename}")          
         ### SEND TO CONVERSION
+        # for debugging
         #time.sleep(3) # TODO delete in production and chango to Applio call
         #cmd = ["cp", str(filename), str(converted_filename)]  # Replace with your actual command
-        cmd = ["python", "infer_script.py", str(filename), str(converted_filename), current_pitch]
+        cmd = ["python", "infer_script.py", str(filename), str(converted_filename), str(current_pitch)]
         screen_clear(f"[*] Running conversion asynchronously: {' '.join(cmd)}") 
         try:
             proc = subprocess.Popen(cmd)
@@ -253,16 +272,44 @@ def on_play():
     else:
         print("[x] No file to play.")
         
+def lower_pitch():
+    global current_pitch
+    current_pitch = max(MINPITCH, current_pitch - 3)
+    if current_pitch < 0:
+        s="-"
+    elif current_pitch > 0: 
+        s = "+"
+    else:
+        s = ""  
+    send_message(f"pitch_{s}{str(current_pitch).zfill(2)}")            
+
+
+def higher_pitch():
+    global current_pitch
+    current_pitch = min(MAXPITCH, current_pitch + 3)         
+    if current_pitch < 0:
+        s="-"
+    elif current_pitch > 0: 
+        s = "+"
+    else:
+        s = ""  
+    send_message(f"pitch_{s}{str(current_pitch).zfill(2)}")
+
+
 def main():
     print("Global Hotkeys:")
     print("  Ctrl+R: Record")
     print("  Ctrl+P: Play last file")
     print("  Ctrl+X: Cancel recording/playback")
+    print("  Ctrl+G: Decrease pitch")
+    print("  Ctrl+H: Increase pitch")    
     print("  Ctrl+C: Exit")
     with keyboard.GlobalHotKeys({
         '<ctrl>+r': on_record,
         '<ctrl>+p': on_play,
         '<ctrl>+x': on_cancel,
+        '<ctrl>+g': lower_pitch,
+        '<ctrl>+h': higher_pitch,
     }) as h:
         try:
             h.join()
@@ -270,4 +317,7 @@ def main():
             print("Exiting...")
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except:
+        pass
