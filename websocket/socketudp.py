@@ -25,7 +25,7 @@ class SocketUDP():
     reciba un mensaje y devuelva True si es correcto, False en caso contrario.
     """
 
-    def __init__(self, host, port= 8080, min_time=MIN_TIME, debug=None):
+    def __init__(self, host, port= 3002, min_time=MIN_TIME, debug=None):
         self.address = (host, port)
         self.socket = socket(AF_INET, SOCK_DGRAM)
         self._debug = debug

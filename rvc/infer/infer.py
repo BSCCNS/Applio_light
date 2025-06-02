@@ -294,7 +294,7 @@ class VoiceConverter:
             else:
                 chunks = []
                 chunks.append(audio)
-            basefilename = os.path.basename(audio_input_path)[:-4]
+            basefilename = audio_output_path # os.path.basename(audio_input_path)[:-4]
             converted_chunks = []
             for c in chunks:
                 audio_opt = self.vc.pipeline(
