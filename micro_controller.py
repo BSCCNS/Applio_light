@@ -14,7 +14,7 @@ import shutil
 from pathlib import Path
 from pynput import keyboard
 
-from socketudp import (send_wf_point, send_message, send_ls_array)
+from websocket.socketudp import (send_wf_point, send_message, send_ls_array)
 
 # TODO FINISH THE REST OF COMMS
 try:
