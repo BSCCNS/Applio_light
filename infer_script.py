@@ -21,7 +21,7 @@ arguments = sys.argv[1:]
 input_params = {
 'input_path': arguments[0], 
 'output_path': arguments[1], 
-'pitch': 0}
+'pitch': arguments[2]}
 
 params.update(input_params)
 

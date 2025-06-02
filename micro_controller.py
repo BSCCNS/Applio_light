@@ -204,7 +204,7 @@ def record_audio():
         ### SEND TO CONVERSION
         #time.sleep(3) # TODO delete in production and chango to Applio call
         #cmd = ["cp", str(filename), str(converted_filename)]  # Replace with your actual command
-        cmd = ["python", "infer_script.py", str(filename), str(converted_filename)]
+        cmd = ["python", "infer_script.py", str(filename), str(converted_filename), current_pitch]
         screen_clear(f"[*] Running conversion asynchronously: {' '.join(cmd)}") 
         try:
             proc = subprocess.Popen(cmd)
