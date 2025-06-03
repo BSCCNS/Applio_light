@@ -244,8 +244,10 @@ def screen_clear(text=None):
 
 def on_record():
     global recording, waiting_for_file
-    if not recording and not waiting_for_file:
+    if not recording and not waiting_for_file and not playing_file:
         threading.Thread(target=record_audio).start()
+    else:
+        print("[x] Cannot record while playing or waiting for file.")
 
 def on_cancel():
     global cancel_requested, play_cancel_event
@@ -259,6 +261,9 @@ def on_cancel():
 
 def on_play():
     global last_file_created
+    if recording or playing_file:
+        print("[x] Cannot play while recording or already playing.")
+    # return
     if last_file_created is not None:
         play_cancel_event.set()
         send_message(PLAY)                
