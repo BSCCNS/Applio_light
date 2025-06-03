@@ -52,6 +52,7 @@ STOPRECORDING = "end_waveform"
 
 
 # Global control flags
+playback_gain = 1.0
 recording = False
 cancel_requested = False
 waiting_for_file = False
@@ -100,25 +101,12 @@ def wait_for_converted_file(converted_filename, wait_cancel_event):
     waiting_for_file = False
 
 def play_wav(filename):
-    global playing_file
+    global playing_file, playback_gain
+
     play_cancel_event.clear()
     data, samplerate = sf.read(filename, dtype='float32')
     blocksize = 1024  # Small block for responsive stop
 
-    # def callback(outdata, frames, time, status):
-    #     if play_cancel_event.is_set():
-    #         raise sd.CallbackStop()
-    #     start = callback.pos
-    #     end = start + frames
-    #     if data.ndim == 1:
-    #         outdata[:, 0] = data[start:end]
-    #     else:
-    #         outdata[:] = data[start:end]
-    #     callback.pos = end        
-    #     if end >= len(data):
-    #         playing_file = False
-    #         raise sd.CallbackStop()
-    # callback.pos = 0
 
     def callback(outdata, frames, time, status):
         if play_cancel_event.is_set():
@@ -129,10 +117,10 @@ def play_wav(filename):
         realframes = end-start
         if data.ndim == 1:
             outdata[:,0]=0
-            outdata[:realframes,0]=data[start:end]
+            outdata[:realframes,0]=data[start:end] * playback_gain
         else:
             outdata[:]=0
-            outdata[:realframes]=data[start:end]
+            outdata[:realframes]=data[start:end] * playback_gain
 
         callback.pos = end        
         if end >= len(data):
@@ -151,6 +139,7 @@ def play_wav(filename):
     except sd.CallbackStop:
         playing_file = False
         pass
+    
 
 def save_to_wav(filename, audio_np):
     if SAMPLEWIDTH == 3:
@@ -299,6 +288,15 @@ def higher_pitch():
     else:
         s = ""  
     send_message(f"pitch_{s}{str(current_pitch).zfill(2)}")
+def increase_volume():
+    global playback_gain
+    playback_gain = min(2.0, playback_gain + 0.1)
+    print(f"[+] Volume increased: {playback_gain:.1f}x")
+
+def decrease_volume():
+    global playback_gain
+    playback_gain = max(0.0, playback_gain - 0.1)
+    print(f"[-] Volume decreased: {playback_gain:.1f}x")
 
 
 def main():
@@ -306,15 +304,15 @@ def main():
     print("  Ctrl+R: Record")
     print("  Ctrl+P: Play last file")
     print("  Ctrl+X: Cancel recording/playback")
-    print("  Ctrl+G: Decrease pitch")
-    print("  Ctrl+H: Increase pitch")    
+    print("  Ctrl+G: Decrease volume")
+    print("  Ctrl+H: Increase volume")    
     print("  Ctrl+C: Exit")
     with keyboard.GlobalHotKeys({
         '<ctrl>+r': on_record,
         '<ctrl>+p': on_play,
         '<ctrl>+x': on_cancel,
-        '<ctrl>+g': lower_pitch,
-        '<ctrl>+h': higher_pitch,
+        '<ctrl>+g': decrease_volume,
+        '<ctrl>+h': increase_volume,
     }) as h:
         try:
             h.join()
