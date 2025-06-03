@@ -2,23 +2,12 @@ from core import run_infer_script
 from params_template import params
 import sys
 
+import numpy as np
 import librosa
 
+F_MARIA = 277
+
 arguments = sys.argv[1:]
-
-# import argparse
-
-# parser = argparse.ArgumentParser(
-#                     prog='AudioConvLS',
-#                     description='Converts audio using RVC and LS from Contentvec',
-#                     epilog='Ask me for help')
-
-# # Define named arguments
-# parser.add_argument('--input_path', type=str, required=True, help="Path to the input wav file")
-# parser.add_argument('--output_path', type=str, required=True, help="Path to the output wav file")
-# parser.add_argument('--pitch', type=int, required=True, help="Pitch shift")
-
-# args = parser.parse_args()
 
 input_params = {
 'input_path': arguments[0], 
@@ -35,8 +24,14 @@ f0 = librosa.yin(audio,
                 fmax=librosa.note_to_hz('C7'), 
                 sr=sr)
 
-print(f'Fundamental frequency detected {f0}')
+avg_f0 = np.nanmean(f0)
+print(f'Fundamental frequency detected {avg_f0}, computing pitch shift')
 
+pitch_shift = 12*np.log2(F_MARIA/avg_f0)
+
+if avg_f0 is not None:
+    print(f'Updating pitch to {pitch_shift}')
+    input_params.update({'pitch': pitch_shift})
 
 params.update(input_params)
 

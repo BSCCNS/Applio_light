@@ -223,14 +223,6 @@ def record_audio():
         save_to_wav(filename, audio_np)
         screen_clear(f"[✓] Saved to {filename}")          
 
-        # ### PITCH EXTRACTION
-        # f0 = librosa.yin(audio_np, 
-        #                 fmin=librosa.note_to_hz('C2'), 
-        #                 fmax=librosa.note_to_hz('C7'), 
-        #                 sr=SAMPLE_RATE)
-        
-        # print(f'Fundamental frequency detected {f0}')
-
         ### SEND TO CONVERSION
         # for debugging
         #time.sleep(3) # TODO delete in production and chango to Applio call
