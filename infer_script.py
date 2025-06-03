@@ -27,7 +27,7 @@ f0 = librosa.yin(audio,
 avg_f0 = np.nanmean(f0)
 print(f'Fundamental frequency detected {avg_f0}, computing pitch shift')
 
-pitch_shift = 12*np.log2(F_MARIA/avg_f0)
+pitch_shift = int(12*np.log2(F_MARIA/avg_f0))
 
 if avg_f0 is not None:
     print(f'Updating pitch to {pitch_shift}')
