@@ -6,7 +6,6 @@ import torch
 import torch.nn.functional as F
 import torchcrepe
 import faiss
-import librosa
 import numpy as np
 from scipy import signal
 from torch import Tensor
