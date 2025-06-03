@@ -206,6 +206,7 @@ def record_audio():
             start_time = time.time()
             while (time.time() - start_time) < RECORD_SECONDS:
                 if cancel_requested:
+                    send_message(CANCEL)
                     break
                 time.sleep(0.1)  # Check every 50ms for cancellation
     except sd.CallbackStop:
