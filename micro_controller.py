@@ -110,6 +110,7 @@ def play_wav(filename):
 
     def callback(outdata, frames, time, status):
         if play_cancel_event.is_set():
+            send_message(CANCEL)  # Notify Unreal Engine we are stopping playback
             raise sd.CallbackStop()
         start = callback.pos
         end = start + frames
