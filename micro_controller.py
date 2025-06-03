@@ -12,6 +12,8 @@ import curses
 import shutil
 from pathlib import Path
 
+import librosa
+
 from websocket.socketudp import (send_wf_point, send_message, send_ls_array)
 
 # TODO FINISH THE REST OF COMMS
@@ -212,6 +214,16 @@ def record_audio(stdscr):
         stdscr.addstr(1, 0, f"[*] Saving to {filename}...")  
         stdscr.refresh()           
         audio_np = np.concatenate(audio_data, axis=0)
+
+        #pitch extraction
+        # TODO sample rate of input or udp message?
+        f0 = librosa.yin(audio_np, 
+                        fmin=librosa.note_to_hz('C2'), 
+                        fmax=librosa.note_to_hz('C7'), 
+                        sr=SAMPLE_RATE)
+        
+        print(f0)
+
         save_to_wav(filename, audio_np)
         stdscr.move(1, 0)
         stdscr.clrtoeol()         
