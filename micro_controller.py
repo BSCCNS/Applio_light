@@ -28,7 +28,7 @@ except AttributeError:
 RECORD_SECONDS = 10 # Duration of recording in seconds
 SAMPLE_RATE = 44100 # Sample rate in Hz check with microphone
 CHANNELS = 1 # Number of audio channels (1 for mono, 2 for stereo)
-BLOCKSIZE = 4096 # Block size for audio processing, smaller uses more cpu but gives faster response
+BLOCKSIZE = 1024 #4096 # Block size for audio processing, smaller uses more cpu but gives faster response
 SAMPLEWIDTH = 3 # 24 bits per sample, better wavs
 GAIN = 200
 ROOTFOLDER = Path.absolute(Path("./audio/"))
