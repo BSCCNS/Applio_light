@@ -32,6 +32,7 @@ BLOCKSIZE = 1024 #4096 # Block size for audio processing, smaller uses more cpu 
 SAMPLEWIDTH = 3 # 24 bits per sample, better wavs
 GAIN = 200
 ROOTFOLDER = Path.absolute(Path("./audio/"))
+WAVSMOOTHING = 0.1
 
 INPUTFOLDER = ROOTFOLDER / "input"
 OUTPUTFOLDER = ROOTFOLDER / "output"
@@ -61,10 +62,12 @@ play_cancel_event = threading.Event()
 last_file_created = None
 current_pitch = 0
 playing_file = False
+pre_volume_level = 0
 
 # Create a nice output gradient using ANSI escape sequences.
 # Stolen from https://gist.github.com/maurisvh/df919538bcef391bc89f
 def send_volume_levels(audio_queue, stop_event):    
+    global pre_volume_level
     while not stop_event.is_set():
         if not audio_queue:
             time.sleep(0.05)
@@ -73,10 +76,12 @@ def send_volume_levels(audio_queue, stop_event):
         # rms = librosa.feature.rms(y=indata)
         # vol = np.mean(rms)
         volume = float(np.linalg.norm(chunk) / len(chunk))
-        send_wf_point(volume)
+        smoothed_volume = (volume * WAVSMOOTHING) + pre_volume_level * (1-WAVSMOOTHING)
+        pre_volumen_level = smoothed_volume
+        send_wf_point(smoothed_volume)
         # message = str(volume).encode()
         # sock.sendto(message, (UDP_IP, UDP_PORT))
-        col = int(GAIN * volume * (COLUMNS - 1))  # Scale volume to terminal width
+        col = int(GAIN * smoothed_volume * (COLUMNS - 1))  # Scale volume to terminal width
         col = min(max(col, 0), COLUMNS - 1)  # Ensure col is within bounds
         line = '█' * col + ' ' * (COLUMNS - col)
         screen_clear(line)
