@@ -15,7 +15,7 @@ import shutil
 from pathlib import Path
 from pynput import keyboard
 from scipy.signal import savgol_filter 
-import termios, tty
+from enum import Enum
 
 from websocket.socketudp import (send_wf_point, send_message, send_ls_array)
 
@@ -25,15 +25,17 @@ try:
 except AttributeError:
     COLUMNS = 80
 
-INACTIVITY_TIMEOUT = 20  # seconds
-
 # Configuration
+INACTIVITY_TIMEOUT = 60  # seconds
+
 RECORD_SECONDS = 10 # Duration of recording in seconds
 SAMPLE_RATE = 44100 # Sample rate in Hz check with microphone
 CHANNELS = 1 # Number of audio channels (1 for mono, 2 for stereo)
 BLOCKSIZE = 1024 #4096 # Block size for audio processing, smaller uses more cpu but gives faster response
 SAMPLEWIDTH = 3 # 24 bits per sample, better wavs
+
 THRESHOLD_DB = -30
+
 GAIN = 100
 ROOTFOLDER = Path.absolute(Path("./audio/"))
 SMOOTHORDER = 3
@@ -47,8 +49,8 @@ OUTPUTFOLDER.mkdir(parents=True, exist_ok=True)
 MAXPITCH = 18
 MINPITCH = -18
 
-
-## Messages to Unreal Engine
+############################################
+#######    Messages to Unreal Engine   #####
 RESET = "restart"
 PLAYINTRO = "playintro"
 READYTORECORD = "ready_to_record"
@@ -58,19 +60,26 @@ CONVERTING = "converting"
 READYTOPLAY = "ready_to_play"
 PLAY = "play"
 
+
+############################################
+#######       Global APP STATES        ##### 
+class POSSIBLESTATES(Enum):
+    IDLE = "IDLE"
+    INTRO = "INTRO"
+    RECREADY = "RECREADY"
+    RECORDING = "RECORDING"
+    RECDONE = "RECDONE"
+    CONVERTING = "CONVERTING"
+    PLAYREADY = "PLAYREADY"
+    PLAYING = "PLAYING"
+    PLAYEND = "PLAYEND"
+
 # Global control flags
+APPSTATE = POSSIBLESTATES.IDLE.value
 playback_gain = 1.25
-recording = False
-cancel_requested = False
-waiting_for_file = False
-wait_cancel_event = threading.Event()
-play_cancel_event = threading.Event()
 last_file_created = None
 current_pitch = 0
-playing_file = False
-record_armed = False
 volume_queue = []
-
 last_activity = time.time()
 listener = None
 lock = threading.Lock()
@@ -106,38 +115,35 @@ def send_volume_levels(audio_queue, stop_event):
         col = min(max(col, 0), COLUMNS - 1)  # Ensure col is within bounds
         line = '█' * col + ' ' * (COLUMNS - col)
         print(line, end='\r', flush=True)  # Only update the current line
-        #screen_clear(line)
 
-def wait_for_converted_file(converted_filename, wait_cancel_event):
-    global waiting_for_file, last_file_created
+def wait_for_converted_file(converted_filename):
+    global APPSTATE, POSSIBLESTATES, last_file_created
     on_activity()    
-    waiting_for_file = True
-    screen_clear(f"[*] Waiting for {converted_filename} to appear... (press ctrl-X to cancel)")
+    APPSTATE = POSSIBLESTATES.CONVERTING.value # TODO check
+    print(f"[*] Waiting for {converted_filename} to appear... (press ctrl-X to cancel)")
     while not os.path.exists(converted_filename):
-        if wait_cancel_event.is_set():
-            send_message(RESET) ## Tell Unreal Engine we canceled the conversion
-            screen_clear("[x] Waiting for converted file canceled by user.")
-            waiting_for_file = False
-            return
         time.sleep(0.05)        
+        # if wait_cancel_event.is_set(): # ESTO SIRVE SI HAY THREADS
+        #     send_message(RESET) ## Tell Unreal Engine we canceled the conversion
+        #     waiting_for_file = False
+        #     return
     latent_data = pd.read_csv(str(converted_filename)[:-4]+"_feats_3d.csv", index_col=0)
     send_ls_array(latent_data.values)
-    screen_clear(f"[✓] Converted file detected: {converted_filename}")
+    print(f"[✓] Converted file detected: {converted_filename}")
+    APPSTATE = POSSIBLESTATES.PLAYREADY.value
     send_message(READYTOPLAY) ## Tell Unreal Engine we are ready to play
     last_file_created = converted_filename
-    waiting_for_file = False
 
 def play_wav(filename):
-    global playing_file, playback_gain
-    play_cancel_event.clear()
+    global APPSTATE, POSSIBLESTATES, playback_gain
     data, samplerate = sf.read(filename, dtype='float32')
     blocksize = 1024  # Small block for responsive stop
 
     def callback(outdata, frames, time, status):
         on_activity()
-        if play_cancel_event.is_set():
-            send_message(RESET)  # Notify Unreal Engine we are stopping playback
-            raise sd.CallbackStop()
+        # if play_cancel_event.is_set():
+        #     send_message(RESET)  # Notify Unreal Engine we are stopping playback
+        #     raise sd.CallbackStop()
         start = callback.pos
         end = start + frames
         end = min(end, len(data))
@@ -151,19 +157,21 @@ def play_wav(filename):
 
         callback.pos = end        
         if end >= len(data):
-            playing_file = False
+            APPSTATE = POSSIBLESTATES.PLAYEND.value
             raise sd.CallbackStop()
         
     callback.pos = 0
     try:
-        playing_file = True
+        APPSTATE = POSSIBLESTATES.PLAYING.value
         with sd.OutputStream(samplerate=samplerate, channels=data.shape[1] if data.ndim > 1 else 1,
                              callback=callback, blocksize=blocksize):
-            while callback.pos < len(data) and not play_cancel_event.is_set():
-                time.sleep(0.05)
-        playing_file = False        
+            while callback.pos < len(data):
+                time.sleep(0.1)
+        APPSTATE = POSSIBLESTATES.PLAYEND.value   
+        print("[*] Playback finished")     
     except sd.CallbackStop:
-        playing_file = False
+        APPSTATE = POSSIBLESTATES.PLAYEND.value
+        print("[*] Playback finished")
         pass
     
 def save_to_wav(filename, audio_np):
@@ -188,7 +196,7 @@ def save_to_wav(filename, audio_np):
             wf.writeframes(audio_int32.tobytes())            
 
 def record_audio():
-    global recording, cancel_requested, wait_cancel_event, waiting_for_file, current_pitch, volume_queue
+    global APPSTATE, POSSIBLESTATES, current_pitch, volume_queue
     timestamp = f"{int(time.time())}"
     filename = INPUTFOLDER / f"recording_{timestamp}.wav"
     converted_filename = OUTPUTFOLDER / f"recording_{timestamp}_converted.wav"
@@ -196,21 +204,16 @@ def record_audio():
     audio_queue = []
     volume_queue = []
     stop_event = threading.Event()
-    cancel_requested = False
-    recording = True
-    wait_cancel_event.clear()
-    waiting_for_file = False
+    APPSTATE = POSSIBLESTATES.RECORDING.value
     send_message(RECORDING)
 
-    screen_clear(f"[*] Recording started. Press ctrl-X to cancel.")  
+    print(f"[*] Recording started. Press ctrl-X to cancel.")  
 
     udp_thread = threading.Thread(target=send_volume_levels, args=(audio_queue, stop_event))
     udp_thread.start()
 
     def callback(indata, frames, time_info, status):
         on_activity()
-        if cancel_requested:
-            raise sd.CallbackStop
         audio_data.append(indata.copy())
         audio_queue.append(indata.copy())
 
@@ -221,107 +224,73 @@ def record_audio():
                             blocksize=BLOCKSIZE):
             start_time = time.time()
             while (time.time() - start_time) < RECORD_SECONDS:
-                if cancel_requested:
-                    send_message(RESET)
-                    break
                 time.sleep(0.1)  # Check every 50ms for cancellation
     except sd.CallbackStop:
-        screen_clear(f"[!] Recording canceled.")  
+        print(f"[!] Recording canceled.")  
     finally:
         stop_event.set()
         udp_thread.join()
-        recording = False
 
-    if not cancel_requested:
+    try:            
+        APPSTATE = POSSIBLESTATES.RECDONE.value
+        send_message(STOPRECORDING)
+        print(f"[*] Saving recording")          
+        audio_np = np.concatenate(audio_data, axis=0)
+        
+        save_to_wav(filename, audio_np)
+        print(f"[✓] Saved to {filename}")          
+
+        ### SEND TO CONVERSION
+        APPSTATE = POSSIBLESTATES.CONVERTING.value
+        send_message(CONVERTING)
+        if os.path.exists('infer_script.py'):
+            cmd = ["python", "infer_script.py", str(filename), str(converted_filename), str(current_pitch)]
+        else:
+            #for debugging
+            time.sleep(3) # TODO delete in production and chango to Applio call
+            cmd = ["cp", str(filename), str(converted_filename)]  # Replace with your actual command
+            pd.DataFrame(np.random.random((100,3))).to_csv(str(converted_filename)[:-4]+"_feats_3d.csv")
+        print(f"[*] Running conversion asynchronously: {' '.join(cmd)}") 
         try:
-            send_message(STOPRECORDING)
-            screen_clear(f"[*] Saving to {filename}...")          
-            audio_np = np.concatenate(audio_data, axis=0)
-
-            save_to_wav(filename, audio_np)
-            screen_clear(f"[✓] Saved to {filename}")          
-
-            ### SEND TO CONVERSION
-            send_message(CONVERTING)
-            if os.path.exists('infer_script.py'):
-                cmd = ["python", "infer_script.py", str(filename), str(converted_filename), str(current_pitch)]
-            else:
-                #for debugging
-                time.sleep(3) # TODO delete in production and chango to Applio call
-                cmd = ["cp", str(filename), str(converted_filename)]  # Replace with your actual command
-                pd.DataFrame(np.random.random((100,3))).to_csv(str(converted_filename)[:-4]+"_feats_3d.csv")
-            screen_clear(f"[*] Running conversion asynchronously: {' '.join(cmd)}") 
-            try:
-                proc = subprocess.Popen(cmd)
-                # Do NOT wait for proc to finish here!
-            except Exception as e:
-                screen_clear(f"[x] Conversion failed to start: {e}")  
-
-            # Wait for conversion
-            wait_thread = threading.Thread(target=wait_for_converted_file, args=(converted_filename, wait_cancel_event))
-            wait_thread.start()
-            wait_thread.join()
-            # while not os.path.exists(converted_filename):
-            #     time.sleep(1)
-            # print(f"[✓] Converted file detected: {converted_filename}")
-            # After conversion and file is ready, play automatically after 1 second
-            time.sleep(1)
-            on_play()
+            proc = subprocess.Popen(cmd)
+            # Do NOT wait for proc to finish here!
         except Exception as e:
-            print(e)
-    else:
-        screen_clear(f"[x] Recording not saved.")  
+            print(f"[x] Conversion failed to start: {e}")  
 
-def screen_clear(text=None):
-    os.system("clear")
-    print("Press Ctrl+R to record, Ctrl+X to cancel, Ctrl+P to play, Ctrl+C to exit.")
-    if text is not None:
-        print(text)
+        # Wait for conversion
+        wait_thread = threading.Thread(target=wait_for_converted_file, args=(converted_filename,))
+        wait_thread.start()
+        wait_thread.join()
+        # while not os.path.exists(converted_filename):
+        #     time.sleep(1)
+        # print(f"[✓] Converted file detected: {converted_filename}")
+        # After conversion and file is ready, play automatically after 1 second
+        APPSTATE = POSSIBLESTATES.PLAYREADY.value
+        time.sleep(1)
+        on_play()
+    except Exception as e:
+        print(e)
+ 
 
 def on_record():
+    global APPSTATE, POSSIBLESTATES
     on_activity()
-    global recording, waiting_for_file, record_armed
-    if not recording and not waiting_for_file and not playing_file:
-        if not record_armed:
-            record_armed = True
-            send_message(READYTORECORD)
-            time.sleep(1)
-            print("[*] Press Ctrl+R again to start recording.")
-        else:
-            record_armed = False
-            threading.Thread(target=record_audio).start()
-    else:
-        print("[x] Cannot record while playing or waiting for file.")
+    APPSTATE == POSSIBLESTATES.RECORDING.value
+    threading.Thread(target=record_audio).start()
 
-
-def on_cancel():
-    on_activity()
-    global cancel_requested, play_cancel_event
-    global recording, waiting_for_file, playing_file
-    # if recording:
-    #     cancel_requested = True
-    # if waiting_for_file:
-    #     wait_cancel_event.set()
-    # if playing_file:
-    #     play_cancel_event.set()
-    if not recording and not waiting_for_file and not playing_file:
-        print("[x] Cancel requested.")
-        reset_state()
 
 def on_play():
+    global APPSTATE, POSSIBLESTATES, last_file_created
     on_activity()
-    global last_file_created, record_armed
     record_armed = False # Reset arming after playback
-    if recording or playing_file:
-        print("[x] Cannot play while recording or already playing.")
-    # return
-    elif last_file_created is not None:
-        play_cancel_event.set()
+    if last_file_created is not None:
+        APPSTATE = POSSIBLESTATES.PLAYING.value
         send_message(PLAY)                
         threading.Thread(target=play_wav, args=(str(last_file_created),)).start()
         print(f"[*] Playing {last_file_created}")
     else:
         print("[x] No file to play.")
+
            
 def set_system_volume(percent):
     # percent: 0-100
@@ -339,7 +308,6 @@ def increase_system_volume():
     volume = int(percent)
     subprocess.run(["osascript", "-e", f"set volume output volume {volume}"])
 
-
 def decrease_system_volume():
     on_activity()
     step=10
@@ -350,88 +318,31 @@ def decrease_system_volume():
     volume = int(percent)
     subprocess.run(["osascript", "-e", f"set volume output volume {volume}"])
 
-def wait_or_skip_video_with_hotkeys(timeout=15):
-    global record_armed
-    """
-    Waits for Ctrl+R, Ctrl+P, or Ctrl+X or timeout (in seconds), whichever comes first.
-    If a key is pressed, sends a SKIP_VIDEO message.
-    """
-    print("[*] Reproducing video from intro.")
-    result = wait_for_ctrl_hotkey()
-    if result:
-        send_message(READYTORECORD)
-        record_armed = True
-        print("[*] Video skipped by user.")
-    else:
-        print("[*] Video finished.")
-
 
 def reset_state():
-    global recording, playing_file, waiting_for_file, cancel_requested
-    global play_cancel_event, wait_cancel_event, last_file_created, record_armed
-    # Stop playback and recording
-    if playing_file:
-        play_cancel_event.set()
-    if recording:
-        cancel_requested = True
-    if waiting_for_file:
-        wait_cancel_event.set()
-    # Reset flags
-    recording = False
-    playing_file = False
-    waiting_for_file = False
-    cancel_requested = False
+    global APPSTATE, POSSIBLESTATES, last_file_created, listener
     last_file_created = None
-    record_armed = False
-    send_message(RESET)
-    
-    # Optionally clear queues, etc.
+    APPSTATE = POSSIBLESTATES.IDLE.value
+    send_message(RESET)    
     print("[*] State reset due to inactivity.")
+    # Restart hotkeys
+    if listener:
+        listener.stop()
+    start_hotkeys()
+
 
 def inactivity_watcher():
-    global listener, last_activity
+    global APPSTATE, POSSIBLESTATES, listener, last_activity
     while True:
         time.sleep(1)
         with lock:
             inactive = (time.time() - last_activity) > INACTIVITY_TIMEOUT
-        if inactive:
+        if inactive and APPSTATE != POSSIBLESTATES.IDLE.value:
             reset_state()  # <--- Reset everything!
-            if listener:
-                listener.stop()
-            wait_for_ctrl_hotkey()
-            with lock:
-                last_activity = time.time()
-            wait_or_skip_video_with_hotkeys(timeout=15)
-            # Restart hotkeys
-            start_hotkeys()
 
-def wait_for_ctrl_hotkey():
-    """
-    Waits for Ctrl+R, Ctrl+P, or Ctrl+X to be pressed.
-    Returns the key pressed as a string: 'r', 'p', or 'x'.
-    """
-    event = threading.Event()
-    result = {'key': None}
-
-    def on_activate_any(keyname):
-        def inner():
-            result['key'] = keyname
-            event.set()
-            on_activity()
-        return inner
-
-    print("\n[Idle] Press Ctrl+R to record, Ctrl+P to play, or Ctrl+X to cancel...")
-    with keyboard.GlobalHotKeys({
-        '<ctrl>+r': on_activate_any('r'),
-        '<ctrl>+p': on_activate_any('p'),
-        '<ctrl>+x': on_activate_any('x'),
-    }) as listener:
-        event.wait()
-        listener.stop()
-    return result['key']
 
 def start_hotkeys():
-    global listener, record_armed
+    global listener, APPSTATE, POSSIBLESTATES
     print("Global Hotkey")
     print("  Ctrl+R: Record")
     print("  Ctrl+P: Play last file")
@@ -439,12 +350,46 @@ def start_hotkeys():
     print("  Ctrl+G: Decrease volume")
     print("  Ctrl+H: Increase volume")    
     print("  Ctrl+C: Exit")
-    send_message(READYTORECORD)
-    record_armed = True
+
+    def dispatcher(order):
+        def inner(): # time.sleep(1)
+            global APPSTATE, POSSIBLESTATES
+            on_activity()
+            if APPSTATE == POSSIBLESTATES.IDLE.value:
+                send_message(PLAYINTRO)
+                print("[ ] Playing intro...")
+                APPSTATE = POSSIBLESTATES.INTRO.value
+            elif APPSTATE == POSSIBLESTATES.INTRO.value:
+                send_message(READYTORECORD)
+                time.sleep(1)
+                print("[ ] Intro skipped, ready to record")
+                APPSTATE = POSSIBLESTATES.RECREADY.value
+            elif APPSTATE == POSSIBLESTATES.RECREADY.value:
+                #on_record()
+                if (order=="record"):
+                    on_record()
+            elif APPSTATE == POSSIBLESTATES.PLAYREADY.value:
+                if (order=="play"):
+                    on_play()
+            elif APPSTATE == POSSIBLESTATES.PLAYEND.value:
+                if (order=="play"):
+                    on_play()
+                elif (order=="record"):
+                    send_message(READYTORECORD)
+                    time.sleep(1)
+                    print("[ ] Ready to record again")
+                    APPSTATE = POSSIBLESTATES.RECREADY.value
+                elif (order=="exit"):
+                    APPSTATE = POSSIBLESTATES.INTRO.value
+                    print("[X] Reset to playing intro")
+                    send_message(PLAYINTRO)
+
+        return inner
+
     listener = keyboard.GlobalHotKeys({
-        '<ctrl>+r': on_record,
-        '<ctrl>+p': on_play,
-        '<ctrl>+x': on_cancel,
+        '<ctrl>+r': dispatcher('record'),
+        '<ctrl>+p': dispatcher('play'),
+        '<ctrl>+x': dispatcher('exit'),
         '<ctrl>+g': decrease_system_volume,
         '<ctrl>+h': increase_system_volume,
     })
@@ -452,10 +397,6 @@ def start_hotkeys():
 
 def main():
     while True:
-        key = wait_for_ctrl_hotkey()
-        send_message(PLAYINTRO)
-        # Optionally, you can act on the key here (e.g., start record/play/cancel immediately)
-        wait_or_skip_video_with_hotkeys(timeout=15)
         start_hotkeys()
         threading.Thread(target=inactivity_watcher, daemon=True).start()
         try:
