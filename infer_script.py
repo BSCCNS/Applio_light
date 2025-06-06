@@ -5,6 +5,22 @@ import sys
 import numpy as np
 import librosa
 
+import logging
+
+LOGS_PATH = 'log.out'
+for handler in logging.root.handlers[:]:
+    logging.root.removeHandler(handler)
+logging.basicConfig(
+    level=logging.INFO, 
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler(LOGS_PATH),   # Logs to a file
+        logging.StreamHandler()           # Prints to console
+    ]
+)
+logging.info(f'------------- logs output to {LOGS_PATH}')
+
+
 F_MARIA = 277
 
 arguments = sys.argv[1:]
@@ -27,7 +43,11 @@ f0 = librosa.yin(audio,
 avg_f0 = np.nanmean(f0)
 print(f'Fundamental frequency detected {avg_f0}, computing pitch shift')
 
+logging.info(f'Fundamental frequency detected {avg_f0}, computing pitch shift')
+
 pitch_shift = int(12*np.log2(F_MARIA/avg_f0))
+
+logging.info(f'Updating pitch to {pitch_shift}')
 
 if avg_f0 is not None:
     print(f'Updating pitch to {pitch_shift}')
