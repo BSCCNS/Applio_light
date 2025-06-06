@@ -31,8 +31,9 @@ INACTIVITY_TIMEOUT = 20  # seconds
 RECORD_SECONDS = 10 # Duration of recording in seconds
 SAMPLE_RATE = 44100 # Sample rate in Hz check with microphone
 CHANNELS = 1 # Number of audio channels (1 for mono, 2 for stereo)
-BLOCKSIZE = 1024 #4096 # Block size for audio processing, smaller uses more cpu but gives faster response
+BLOCKSIZE = 256 #4096 # Block size for audio processing, smaller uses more cpu but gives faster response
 SAMPLEWIDTH = 3 # 24 bits per sample, better wavs
+THRESHOLD_DB = -30
 GAIN = 100
 ROOTFOLDER = Path.absolute(Path("./audio/"))
 SMOOTHORDER = 3
@@ -56,9 +57,6 @@ STOPRECORDING = "end_waveform"
 CONVERTING = "converting"
 READYTOPLAY = "ready_to_play"
 PLAY = "play"
-EXIT = "exit"
-FILLERSCREEN = "filler"
-
 
 # Global control flags
 playback_gain = 1.25
@@ -75,7 +73,6 @@ volume_queue = []
 last_activity = time.time()
 listener = None
 lock = threading.Lock()
-
 
 def on_activity():
     global last_activity
@@ -146,10 +143,10 @@ def play_wav(filename):
         realframes = end-start
         if data.ndim == 1:
             outdata[:,0]=0
-            outdata[:realframes,0]=data[start:end] #* playback_gain
+            outdata[:realframes,0]=data[start:end] * playback_gain
         else:
             outdata[:]=0
-            outdata[:realframes]=data[start:end] #* playback_gain
+            outdata[:realframes]=data[start:end] * playback_gain
 
         callback.pos = end        
         if end >= len(data):
@@ -291,14 +288,16 @@ def on_record():
 def on_cancel():
     on_activity()
     global cancel_requested, play_cancel_event
-    if recording:
-        cancel_requested = True
-    if waiting_for_file:
-        wait_cancel_event.set()
-    if playing_file:
-                play_cancel_event.set()
-    send_message(RESET)
-    print("[x] Cancel requested.")
+    global recording, waiting_for_file, playing_file
+    # if recording:
+    #     cancel_requested = True
+    # if waiting_for_file:
+    #     wait_cancel_event.set()
+    # if playing_file:
+    #     play_cancel_event.set()
+    if not recording and not waiting_for_file and not playing_file:
+        print("[x] Cancel requested.")
+        reset_state()
 
 def on_play():
     on_activity()
