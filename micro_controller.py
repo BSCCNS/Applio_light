@@ -146,10 +146,10 @@ def play_wav(filename):
         realframes = end-start
         if data.ndim == 1:
             outdata[:,0]=0
-            outdata[:realframes,0]=data[start:end] * playback_gain
+            outdata[:realframes,0]=data[start:end] #* playback_gain
         else:
             outdata[:]=0
-            outdata[:realframes]=data[start:end] * playback_gain
+            outdata[:realframes]=data[start:end] #* playback_gain
 
         callback.pos = end        
         if end >= len(data):

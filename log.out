@@ -1,0 +1,9 @@
+2025-06-06 11:47:08,265 - INFO - ------------- logs output to log.out
+2025-06-06 11:47:08,828 - INFO - Fundamental frequency detected 219.40347775871703, computing pitch shift
+2025-06-06 11:47:08,828 - INFO - Updating pitch to 4
+2025-06-06 11:50:03,953 - INFO - ------------- logs output to log.out
+2025-06-06 11:50:04,071 - INFO - Fundamental frequency detected 129.24606980728686, computing pitch shift
+2025-06-06 11:50:04,071 - INFO - Updating pitch to 13
+2025-06-06 11:57:27,510 - INFO - ------------- logs output to log.out
+2025-06-06 11:57:27,628 - INFO - Fundamental frequency detected 233.5844309938729, computing pitch shift
+2025-06-06 11:57:27,628 - INFO - Updating pitch to 2
