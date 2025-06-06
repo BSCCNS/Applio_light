@@ -31,7 +31,7 @@ INACTIVITY_TIMEOUT = 20  # seconds
 RECORD_SECONDS = 10 # Duration of recording in seconds
 SAMPLE_RATE = 44100 # Sample rate in Hz check with microphone
 CHANNELS = 1 # Number of audio channels (1 for mono, 2 for stereo)
-BLOCKSIZE = 256 #4096 # Block size for audio processing, smaller uses more cpu but gives faster response
+BLOCKSIZE = 1024 #4096 # Block size for audio processing, smaller uses more cpu but gives faster response
 SAMPLEWIDTH = 3 # 24 bits per sample, better wavs
 THRESHOLD_DB = -30
 GAIN = 100
@@ -68,6 +68,7 @@ play_cancel_event = threading.Event()
 last_file_created = None
 current_pitch = 0
 playing_file = False
+record_armed = False
 volume_queue = []
 
 last_activity = time.time()
@@ -160,7 +161,7 @@ def play_wav(filename):
                              callback=callback, blocksize=blocksize):
             while callback.pos < len(data) and not play_cancel_event.is_set():
                 time.sleep(0.05)
-        playing_file = False
+        playing_file = False        
     except sd.CallbackStop:
         playing_file = False
         pass
@@ -279,11 +280,18 @@ def screen_clear(text=None):
 
 def on_record():
     on_activity()
-    global recording, waiting_for_file
+    global recording, waiting_for_file, record_armed
     if not recording and not waiting_for_file and not playing_file:
-        threading.Thread(target=record_audio).start()
+        if not record_armed:
+            record_armed = True
+            send_message(READYTORECORD)
+            print("[*] Press Ctrl+R again to start recording.")
+        else:
+            record_armed = False
+            threading.Thread(target=record_audio).start()
     else:
         print("[x] Cannot record while playing or waiting for file.")
+
 
 def on_cancel():
     on_activity()
@@ -301,11 +309,12 @@ def on_cancel():
 
 def on_play():
     on_activity()
-    global last_file_created
+    global last_file_created, record_armed
+    record_armed = False # Reset arming after playback
     if recording or playing_file:
         print("[x] Cannot play while recording or already playing.")
     # return
-    if last_file_created is not None:
+    elif last_file_created is not None:
         play_cancel_event.set()
         send_message(PLAY)                
         threading.Thread(target=play_wav, args=(str(last_file_created),)).start()
@@ -341,31 +350,16 @@ def decrease_system_volume():
     subprocess.run(["osascript", "-e", f"set volume output volume {volume}"])
 
 def wait_or_skip_video_with_hotkeys(timeout=15):
+    global record_armed
     """
     Waits for Ctrl+R, Ctrl+P, or Ctrl+X or timeout (in seconds), whichever comes first.
     If a key is pressed, sends a SKIP_VIDEO message.
     """
-    event = threading.Event()
-    result = {'key': None}
-
-    def on_activate_any(keyname):
-        def inner():
-            result['key'] = keyname
-            event.set()
-            on_activity()
-        return inner
-
-    print(f"\n[Video] Playing video... (press Ctrl+R, Ctrl+P, or Ctrl+X to skip, or wait {timeout} seconds)")
-    send_message(PLAYINTRO)
-    with keyboard.GlobalHotKeys({
-        '<ctrl>+r': on_activate_any('r'),
-        '<ctrl>+p': on_activate_any('p'),
-        '<ctrl>+x': on_activate_any('x'),
-    }) as listener:
-        event.wait(timeout)
-        listener.stop()
-    if result['key']:
+    print("[*] Reproducing video from intro.")
+    result = wait_for_ctrl_hotkey()
+    if result:
         send_message(READYTORECORD)
+        record_armed = True
         print("[*] Video skipped by user.")
     else:
         print("[*] Video finished.")
@@ -373,7 +367,7 @@ def wait_or_skip_video_with_hotkeys(timeout=15):
 
 def reset_state():
     global recording, playing_file, waiting_for_file, cancel_requested
-    global play_cancel_event, wait_cancel_event, last_file_created
+    global play_cancel_event, wait_cancel_event, last_file_created, record_armed
     # Stop playback and recording
     if playing_file:
         play_cancel_event.set()
@@ -387,6 +381,7 @@ def reset_state():
     waiting_for_file = False
     cancel_requested = False
     last_file_created = None
+    record_armed = False
     send_message(RESET)
     
     # Optionally clear queues, etc.
@@ -435,7 +430,7 @@ def wait_for_ctrl_hotkey():
     return result['key']
 
 def start_hotkeys():
-    global listener
+    global listener, record_armed
     print("Global Hotkey")
     print("  Ctrl+R: Record")
     print("  Ctrl+P: Play last file")
@@ -444,6 +439,7 @@ def start_hotkeys():
     print("  Ctrl+H: Increase volume")    
     print("  Ctrl+C: Exit")
     send_message(READYTORECORD)
+    record_armed = True
     listener = keyboard.GlobalHotKeys({
         '<ctrl>+r': on_record,
         '<ctrl>+p': on_play,
