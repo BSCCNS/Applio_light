@@ -40,7 +40,7 @@ f0 = librosa.yin(audio,
                 fmax=librosa.note_to_hz('C7'), 
                 sr=sr)
 
-avg_f0 = np.nanmean(f0)
+avg_f0 = np.nanmedian(f0)
 print(f'Fundamental frequency detected {avg_f0}, computing pitch shift')
 
 logging.info(f'Fundamental frequency detected {avg_f0}, computing pitch shift')
