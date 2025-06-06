@@ -9,12 +9,13 @@ import soundfile as sf
 import threading
 import time
 import os
+import sys
 import subprocess
 import shutil
 from pathlib import Path
 from pynput import keyboard
-
-import librosa
+from scipy.signal import savgol_filter 
+import termios, tty
 
 from websocket.socketudp import (send_wf_point, send_message, send_ls_array)
 
@@ -24,15 +25,18 @@ try:
 except AttributeError:
     COLUMNS = 80
 
+INACTIVITY_TIMEOUT = 20  # seconds
+
 # Configuration
 RECORD_SECONDS = 10 # Duration of recording in seconds
 SAMPLE_RATE = 44100 # Sample rate in Hz check with microphone
 CHANNELS = 1 # Number of audio channels (1 for mono, 2 for stereo)
 BLOCKSIZE = 1024 #4096 # Block size for audio processing, smaller uses more cpu but gives faster response
 SAMPLEWIDTH = 3 # 24 bits per sample, better wavs
-GAIN = 200
+GAIN = 100
 ROOTFOLDER = Path.absolute(Path("./audio/"))
-WAVSMOOTHING = 0.1
+SMOOTHORDER = 3
+SMOOTHWINDOW = 80 # 10s*44100/BLOCKSIZE is the total amount of points, we want this window to be at least 5% ?  
 
 INPUTFOLDER = ROOTFOLDER / "input"
 OUTPUTFOLDER = ROOTFOLDER / "output"
@@ -44,16 +48,19 @@ MINPITCH = -18
 
 
 ## Messages to Unreal Engine
-CANCEL = "cancel"
-CONVERTING = "converting"
-PLAY = "play"
-READYTOPLAY = "ready_to_play"
+RESET = "restart"
+READYTORECORD = "ready_to_record"
 RECORDING = "start_waveform"
 STOPRECORDING = "end_waveform"
+CONVERTING = "converting"
+READYTOPLAY = "ready_to_play"
+PLAY = "play"
+EXIT = "exit"
+FILLERSCREEN = "filler"
 
 
 # Global control flags
-playback_gain = 1.0
+playback_gain = 1.25
 recording = False
 cancel_requested = False
 waiting_for_file = False
@@ -62,13 +69,23 @@ play_cancel_event = threading.Event()
 last_file_created = None
 current_pitch = 0
 playing_file = False
-pre_volume_level = 0
+volume_queue = []
+
+last_activity = time.time()
+listener = None
+lock = threading.Lock()
+
+
+def on_activity():
+    global last_activity
+    with lock:
+        last_activity = time.time()
 
 # Create a nice output gradient using ANSI escape sequences.
 # Stolen from https://gist.github.com/maurisvh/df919538bcef391bc89f
 def send_volume_levels(audio_queue, stop_event):    
-    global pre_volume_level
     while not stop_event.is_set():
+        on_activity()
         if not audio_queue:
             time.sleep(0.05)
             continue
@@ -76,46 +93,51 @@ def send_volume_levels(audio_queue, stop_event):
         # rms = librosa.feature.rms(y=indata)
         # vol = np.mean(rms)
         volume = float(np.linalg.norm(chunk) / len(chunk))
-        smoothed_volume = (volume * WAVSMOOTHING) + pre_volume_level * (1-WAVSMOOTHING)
-        pre_volumen_level = smoothed_volume
-        send_wf_point(smoothed_volume)
+        volume_queue.append(volume)
+        if len(volume_queue)>SMOOTHWINDOW+1:
+            smooth_volume_array = savgol_filter(volume_queue, SMOOTHWINDOW, SMOOTHORDER)
+            smooth_volume = float(smooth_volume_array[-1])
+        else:
+            smooth_volume = volume
+        #smooth_volume_queue.append(smooth_volume)        
+        send_wf_point((smooth_volume))
         # message = str(volume).encode()
         # sock.sendto(message, (UDP_IP, UDP_PORT))
-        col = int(GAIN * smoothed_volume * (COLUMNS - 1))  # Scale volume to terminal width
+        col = int(GAIN * smooth_volume * (COLUMNS - 1))  # Scale volume to terminal width
         col = min(max(col, 0), COLUMNS - 1)  # Ensure col is within bounds
         line = '█' * col + ' ' * (COLUMNS - col)
-        screen_clear(line)
+        print(line, end='\r', flush=True)  # Only update the current line
+        #screen_clear(line)
 
 def wait_for_converted_file(converted_filename, wait_cancel_event):
     global waiting_for_file, last_file_created
-    send_message(CONVERTING) ## Tell Unreal Engine we are converting
+    on_activity()    
     waiting_for_file = True
     screen_clear(f"[*] Waiting for {converted_filename} to appear... (press ctrl-X to cancel)")
     while not os.path.exists(converted_filename):
         if wait_cancel_event.is_set():
-            send_message(CANCEL) ## Tell Unreal Engine we canceled the conversion
+            send_message(RESET) ## Tell Unreal Engine we canceled the conversion
             screen_clear("[x] Waiting for converted file canceled by user.")
             waiting_for_file = False
             return
-        time.sleep(0.05)    
-    send_message(READYTOPLAY) ## Tell Unreal Engine we are ready to play
+        time.sleep(0.05)        
     latent_data = pd.read_csv(str(converted_filename)[:-4]+"_feats_3d.csv", index_col=0)
     send_ls_array(latent_data.values)
     screen_clear(f"[✓] Converted file detected: {converted_filename}")
+    send_message(READYTOPLAY) ## Tell Unreal Engine we are ready to play
     last_file_created = converted_filename
     waiting_for_file = False
 
 def play_wav(filename):
     global playing_file, playback_gain
-
     play_cancel_event.clear()
     data, samplerate = sf.read(filename, dtype='float32')
     blocksize = 1024  # Small block for responsive stop
 
-
     def callback(outdata, frames, time, status):
+        on_activity()
         if play_cancel_event.is_set():
-            send_message(CANCEL)  # Notify Unreal Engine we are stopping playback
+            send_message(RESET)  # Notify Unreal Engine we are stopping playback
             raise sd.CallbackStop()
         start = callback.pos
         end = start + frames
@@ -134,7 +156,6 @@ def play_wav(filename):
             raise sd.CallbackStop()
         
     callback.pos = 0
-
     try:
         playing_file = True
         with sd.OutputStream(samplerate=samplerate, channels=data.shape[1] if data.ndim > 1 else 1,
@@ -146,8 +167,8 @@ def play_wav(filename):
         playing_file = False
         pass
     
-
 def save_to_wav(filename, audio_np):
+    on_activity()
     if SAMPLEWIDTH == 3:
         # difficult to save 24-bit directly, use a library
         sf.write(filename, audio_np, SAMPLE_RATE, subtype='PCM_24')
@@ -167,19 +188,20 @@ def save_to_wav(filename, audio_np):
             wf.setframerate(SAMPLE_RATE)
             wf.writeframes(audio_int32.tobytes())            
 
-
 def record_audio():
-    global recording, cancel_requested, wait_cancel_event, waiting_for_file, current_pitch
+    global recording, cancel_requested, wait_cancel_event, waiting_for_file, current_pitch, volume_queue
     timestamp = f"{int(time.time())}"
     filename = INPUTFOLDER / f"recording_{timestamp}.wav"
     converted_filename = OUTPUTFOLDER / f"recording_{timestamp}_converted.wav"
     audio_data = []
     audio_queue = []
+    volume_queue = []
     stop_event = threading.Event()
     cancel_requested = False
     recording = True
     wait_cancel_event.clear()
     waiting_for_file = False
+    send_message(RECORDING)
 
     screen_clear(f"[*] Recording started. Press ctrl-X to cancel.")  
 
@@ -187,13 +209,13 @@ def record_audio():
     udp_thread.start()
 
     def callback(indata, frames, time_info, status):
+        on_activity()
         if cancel_requested:
             raise sd.CallbackStop
         audio_data.append(indata.copy())
         audio_queue.append(indata.copy())
 
-    try:
-        send_message(RECORDING)
+    try:        
         with sd.InputStream(callback=callback, 
                             channels=CHANNELS, 
                             samplerate=SAMPLE_RATE,
@@ -201,7 +223,7 @@ def record_audio():
             start_time = time.time()
             while (time.time() - start_time) < RECORD_SECONDS:
                 if cancel_requested:
-                    send_message(CANCEL)
+                    send_message(RESET)
                     break
                 time.sleep(0.1)  # Check every 50ms for cancellation
     except sd.CallbackStop:
@@ -212,32 +234,39 @@ def record_audio():
         recording = False
 
     if not cancel_requested:
-        send_message(STOPRECORDING)
-        screen_clear(f"[*] Saving to {filename}...")          
-        audio_np = np.concatenate(audio_data, axis=0)
-
-        save_to_wav(filename, audio_np)
-        screen_clear(f"[✓] Saved to {filename}")          
-
-        ### SEND TO CONVERSION
-        # for debugging
-        #time.sleep(3) # TODO delete in production and chango to Applio call
-        #cmd = ["cp", str(filename), str(converted_filename)]  # Replace with your actual command
-        cmd = ["python", "infer_script.py", str(filename), str(converted_filename), str(current_pitch)]
-        screen_clear(f"[*] Running conversion asynchronously: {' '.join(cmd)}") 
         try:
-            proc = subprocess.Popen(cmd)
-            # Do NOT wait for proc to finish here!
-        except Exception as e:
-            screen_clear(f"[x] Conversion failed to start: {e}")  
+            send_message(STOPRECORDING)
+            screen_clear(f"[*] Saving to {filename}...")          
+            audio_np = np.concatenate(audio_data, axis=0)
 
-        # Wait for conversion
-        wait_thread = threading.Thread(target=wait_for_converted_file, args=(converted_filename, wait_cancel_event))
-        wait_thread.start()
-        wait_thread.join()
-        # while not os.path.exists(converted_filename):
-        #     time.sleep(1)
-        # print(f"[✓] Converted file detected: {converted_filename}")
+            save_to_wav(filename, audio_np)
+            screen_clear(f"[✓] Saved to {filename}")          
+
+            ### SEND TO CONVERSION
+            send_message(CONVERTING)
+            if os.path.exists('infer_script.py'):
+                cmd = ["python", "infer_script.py", str(filename), str(converted_filename), str(current_pitch)]
+            else:
+                #for debugging
+                time.sleep(3) # TODO delete in production and chango to Applio call
+                cmd = ["cp", str(filename), str(converted_filename)]  # Replace with your actual command
+                pd.DataFrame(np.random.random((100,3))).to_csv(str(converted_filename)[:-4]+"_feats_3d.csv")
+            screen_clear(f"[*] Running conversion asynchronously: {' '.join(cmd)}") 
+            try:
+                proc = subprocess.Popen(cmd)
+                # Do NOT wait for proc to finish here!
+            except Exception as e:
+                screen_clear(f"[x] Conversion failed to start: {e}")  
+
+            # Wait for conversion
+            wait_thread = threading.Thread(target=wait_for_converted_file, args=(converted_filename, wait_cancel_event))
+            wait_thread.start()
+            wait_thread.join()
+            # while not os.path.exists(converted_filename):
+            #     time.sleep(1)
+            # print(f"[✓] Converted file detected: {converted_filename}")
+        except Exception as e:
+            print(e)
     else:
         screen_clear(f"[x] Recording not saved.")  
 
@@ -248,6 +277,7 @@ def screen_clear(text=None):
         print(text)
 
 def on_record():
+    on_activity()
     global recording, waiting_for_file
     if not recording and not waiting_for_file and not playing_file:
         threading.Thread(target=record_audio).start()
@@ -255,6 +285,7 @@ def on_record():
         print("[x] Cannot record while playing or waiting for file.")
 
 def on_cancel():
+    on_activity()
     global cancel_requested, play_cancel_event
     if recording:
         cancel_requested = True
@@ -262,9 +293,11 @@ def on_cancel():
         wait_cancel_event.set()
     if playing_file:
                 play_cancel_event.set()
+    send_message(RESET)
     print("[x] Cancel requested.")
 
 def on_play():
+    on_activity()
     global last_file_created
     if recording or playing_file:
         print("[x] Cannot play while recording or already playing.")
@@ -276,62 +309,110 @@ def on_play():
         print(f"[*] Playing {last_file_created}")
     else:
         print("[x] No file to play.")
-        
-def lower_pitch():
-    global current_pitch
-    current_pitch = max(MINPITCH, current_pitch - 3)
-    if current_pitch < 0:
-        s="-"
-    elif current_pitch > 0: 
-        s = "+"
-    else:
-        s = ""  
-    send_message(f"pitch_{s}{str(current_pitch).zfill(2)}")            
+           
+def set_system_volume(percent):
+    # percent: 0-100
+    volume = int(percent)
+    subprocess.run(["osascript", "-e", f"set volume output volume {volume}"])
+
+def increase_system_volume():
+    on_activity()
+    step=10
+    # Get current volume
+    current = int(subprocess.check_output(
+        ["osascript", "-e", "output volume of (get volume settings)"]
+    ).strip())
+    percent = (min(100, current + step))
+    volume = int(percent)
+    subprocess.run(["osascript", "-e", f"set volume output volume {volume}"])
 
 
-def higher_pitch():
-    global current_pitch
-    current_pitch = min(MAXPITCH, current_pitch + 3)         
-    if current_pitch < 0:
-        s="-"
-    elif current_pitch > 0: 
-        s = "+"
-    else:
-        s = ""  
-    send_message(f"pitch_{s}{str(current_pitch).zfill(2)}")
-def increase_volume():
-    global playback_gain
-    playback_gain = min(2.0, playback_gain + 0.1)
-    print(f"[+] Volume increased: {playback_gain:.1f}x")
+def decrease_system_volume():
+    on_activity()
+    step=10
+    current = int(subprocess.check_output(
+        ["osascript", "-e", "output volume of (get volume settings)"]
+    ).strip())
+    percent = (max(0, current - step))
+    volume = int(percent)
+    subprocess.run(["osascript", "-e", f"set volume output volume {volume}"])
 
-def decrease_volume():
-    global playback_gain
-    playback_gain = max(0.0, playback_gain - 0.1)
-    print(f"[-] Volume decreased: {playback_gain:.1f}x")
+def wait_for_any_key():
+    print("\n[Idle] Press any key to start...", end='', flush=True)
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+    try:
+        tty.setraw(fd)
+        sys.stdin.read(1)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    print()  # Move to next line
 
+def reset_state():
+    global recording, playing_file, waiting_for_file, cancel_requested
+    global play_cancel_event, wait_cancel_event, last_file_created
+    # Stop playback and recording
+    if playing_file:
+        play_cancel_event.set()
+    if recording:
+        cancel_requested = True
+    if waiting_for_file:
+        wait_cancel_event.set()
+    # Reset flags
+    recording = False
+    playing_file = False
+    waiting_for_file = False
+    cancel_requested = False
+    last_file_created = None
+    send_message(RESET)
+    
+    # Optionally clear queues, etc.
+    print("[*] State reset due to inactivity.")
 
-def main():
-    print("Global Hotkeys:")
+def inactivity_watcher():
+    global listener, last_activity
+    while True:
+        time.sleep(1)
+        with lock:
+            inactive = (time.time() - last_activity) > INACTIVITY_TIMEOUT
+        if inactive:
+            reset_state()  # <--- Reset everything!
+            if listener:
+                listener.stop()
+            wait_for_any_key()
+            with lock:
+                last_activity = time.time()
+            # Restart hotkeys
+            start_hotkeys()
+
+def start_hotkeys():
+    global listener
+    print("Global Hotkey")
     print("  Ctrl+R: Record")
     print("  Ctrl+P: Play last file")
     print("  Ctrl+X: Cancel recording/playback")
     print("  Ctrl+G: Decrease volume")
     print("  Ctrl+H: Increase volume")    
     print("  Ctrl+C: Exit")
-    with keyboard.GlobalHotKeys({
+    send_message(READYTORECORD)
+    listener = keyboard.GlobalHotKeys({
         '<ctrl>+r': on_record,
         '<ctrl>+p': on_play,
         '<ctrl>+x': on_cancel,
-        '<ctrl>+g': decrease_volume,
-        '<ctrl>+h': increase_volume,
-    }) as h:
-        try:
-            h.join()
-        except KeyboardInterrupt:
-            print("Exiting...")
+        '<ctrl>+g': decrease_system_volume,
+        '<ctrl>+h': increase_system_volume,
+    })
+    listener.start()
+
+def main():
+    wait_for_any_key()
+    start_hotkeys()
+    threading.Thread(target=inactivity_watcher, daemon=True).start()
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("Exiting...")
 
 if __name__ == "__main__":
-    try:
-        main()
-    except:
-        pass
+    main()
