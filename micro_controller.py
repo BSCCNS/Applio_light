@@ -49,6 +49,7 @@ MINPITCH = -18
 
 ## Messages to Unreal Engine
 RESET = "restart"
+PLAYINTRO = "playintro"
 READYTORECORD = "ready_to_record"
 RECORDING = "start_waveform"
 STOPRECORDING = "end_waveform"
@@ -265,6 +266,9 @@ def record_audio():
             # while not os.path.exists(converted_filename):
             #     time.sleep(1)
             # print(f"[✓] Converted file detected: {converted_filename}")
+            # After conversion and file is ready, play automatically after 1 second
+            time.sleep(1)
+            on_play()
         except Exception as e:
             print(e)
     else:
@@ -337,16 +341,36 @@ def decrease_system_volume():
     volume = int(percent)
     subprocess.run(["osascript", "-e", f"set volume output volume {volume}"])
 
-def wait_for_any_key():
-    print("\n[Idle] Press any key to start...", end='', flush=True)
-    fd = sys.stdin.fileno()
-    old_settings = termios.tcgetattr(fd)
-    try:
-        tty.setraw(fd)
-        sys.stdin.read(1)
-    finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-    print()  # Move to next line
+def wait_or_skip_video_with_hotkeys(timeout=15):
+    """
+    Waits for Ctrl+R, Ctrl+P, or Ctrl+X or timeout (in seconds), whichever comes first.
+    If a key is pressed, sends a SKIP_VIDEO message.
+    """
+    event = threading.Event()
+    result = {'key': None}
+
+    def on_activate_any(keyname):
+        def inner():
+            result['key'] = keyname
+            event.set()
+            on_activity()
+        return inner
+
+    print(f"\n[Video] Playing video... (press Ctrl+R, Ctrl+P, or Ctrl+X to skip, or wait {timeout} seconds)")
+    send_message(PLAYINTRO)
+    with keyboard.GlobalHotKeys({
+        '<ctrl>+r': on_activate_any('r'),
+        '<ctrl>+p': on_activate_any('p'),
+        '<ctrl>+x': on_activate_any('x'),
+    }) as listener:
+        event.wait(timeout)
+        listener.stop()
+    if result['key']:
+        send_message(READYTORECORD)
+        print("[*] Video skipped by user.")
+    else:
+        print("[*] Video finished.")
+
 
 def reset_state():
     global recording, playing_file, waiting_for_file, cancel_requested
@@ -379,11 +403,37 @@ def inactivity_watcher():
             reset_state()  # <--- Reset everything!
             if listener:
                 listener.stop()
-            wait_for_any_key()
+            wait_for_ctrl_hotkey()
             with lock:
                 last_activity = time.time()
+            wait_or_skip_video_with_hotkeys(timeout=15)
             # Restart hotkeys
             start_hotkeys()
+
+def wait_for_ctrl_hotkey():
+    """
+    Waits for Ctrl+R, Ctrl+P, or Ctrl+X to be pressed.
+    Returns the key pressed as a string: 'r', 'p', or 'x'.
+    """
+    event = threading.Event()
+    result = {'key': None}
+
+    def on_activate_any(keyname):
+        def inner():
+            result['key'] = keyname
+            event.set()
+            on_activity()
+        return inner
+
+    print("\n[Idle] Press Ctrl+R to record, Ctrl+P to play, or Ctrl+X to cancel...")
+    with keyboard.GlobalHotKeys({
+        '<ctrl>+r': on_activate_any('r'),
+        '<ctrl>+p': on_activate_any('p'),
+        '<ctrl>+x': on_activate_any('x'),
+    }) as listener:
+        event.wait()
+        listener.stop()
+    return result['key']
 
 def start_hotkeys():
     global listener
@@ -405,14 +455,18 @@ def start_hotkeys():
     listener.start()
 
 def main():
-    wait_for_any_key()
-    start_hotkeys()
-    threading.Thread(target=inactivity_watcher, daemon=True).start()
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        print("Exiting...")
+    while True:
+        key = wait_for_ctrl_hotkey()
+        # Optionally, you can act on the key here (e.g., start record/play/cancel immediately)
+        wait_or_skip_video_with_hotkeys(timeout=15)
+        start_hotkeys()
+        threading.Thread(target=inactivity_watcher, daemon=True).start()
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            print("Exiting...")
+            break
 
 if __name__ == "__main__":
     main()
