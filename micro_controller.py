@@ -452,6 +452,7 @@ def start_hotkeys():
 def main():
     while True:
         key = wait_for_ctrl_hotkey()
+        send_message(PLAYINTRO)
         # Optionally, you can act on the key here (e.g., start record/play/cancel immediately)
         wait_or_skip_video_with_hotkeys(timeout=15)
         start_hotkeys()
