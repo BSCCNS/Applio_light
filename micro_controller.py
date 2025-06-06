@@ -285,6 +285,7 @@ def on_record():
         if not record_armed:
             record_armed = True
             send_message(READYTORECORD)
+            time.sleep(1)
             print("[*] Press Ctrl+R again to start recording.")
         else:
             record_armed = False
