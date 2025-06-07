@@ -324,7 +324,6 @@ def reset_state():
     last_file_created = None
     APPSTATE = POSSIBLESTATES.IDLE.value
     send_message(RESET)    
-    print("[*] State reset due to inactivity.")
     # Restart hotkeys
     if listener:
         listener.stop()
@@ -338,6 +337,7 @@ def inactivity_watcher():
         with lock:
             inactive = (time.time() - last_activity) > INACTIVITY_TIMEOUT
         if inactive and APPSTATE != POSSIBLESTATES.IDLE.value:
+            print("[*] State reset due to inactivity.")
             reset_state()  # <--- Reset everything!
 
 
@@ -380,9 +380,10 @@ def start_hotkeys():
                     print("[ ] Ready to record again")
                     APPSTATE = POSSIBLESTATES.RECREADY.value
                 elif (order=="exit"):
-                    APPSTATE = POSSIBLESTATES.INTRO.value
-                    print("[X] Reset to playing intro")
-                    send_message(PLAYINTRO)
+                    APPSTATE = POSSIBLESTATES.IDLE.value
+                    print("[X] Reset to idle")
+                    last_file_created = None
+                    send_message(RESET)
 
         return inner
 
