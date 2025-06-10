@@ -27,7 +27,7 @@ except AttributeError:
 
 # Configuration
 INACTIVITY_TIMEOUT = 120  # seconds
-WAITFORINFOVIDEOPLAY = 18 # seconds wating for the video
+WAITFORINFOVIDEOPLAY = 17 # seconds wating for the video
 
 RECORD_SECONDS = 10 # Duration of recording in seconds
 SAMPLE_RATE = 44100 # Sample rate in Hz check with microphone
