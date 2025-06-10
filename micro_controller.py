@@ -26,7 +26,7 @@ except AttributeError:
     COLUMNS = 80
 
 # Configuration
-INACTIVITY_TIMEOUT = 60  # seconds
+INACTIVITY_TIMEOUT = 120  # seconds
 
 RECORD_SECONDS = 10 # Duration of recording in seconds
 SAMPLE_RATE = 44100 # Sample rate in Hz check with microphone
@@ -127,11 +127,19 @@ def wait_for_converted_file(converted_filename):
         #     send_message(RESET) ## Tell Unreal Engine we canceled the conversion
         #     waiting_for_file = False
         #     return
+    initime = time.time()
     latent_data = pd.read_csv(str(converted_filename)[:-4]+"_feats_3d.csv", index_col=0)
     send_ls_array(latent_data.values)
     print(f"[✓] Converted file detected: {converted_filename}")
+    curtime = time.time()
+    print(f"[ ] Waiting for video to play")
+    while curtime-initime < 20: # we need to wait for the video to play
+        # this could be cancellable
+        time.sleep(0.5)
+        curtime = time.time()
     APPSTATE = POSSIBLESTATES.PLAYREADY.value
     send_message(READYTOPLAY) ## Tell Unreal Engine we are ready to play
+    print(f"[✓] Video finished")
     last_file_created = converted_filename
 
 def play_wav(filename):
@@ -264,9 +272,9 @@ def record_audio():
         # while not os.path.exists(converted_filename):
         #     time.sleep(1)
         # print(f"[✓] Converted file detected: {converted_filename}")
-        # After conversion and file is ready, play automatically after 1 second
-        APPSTATE = POSSIBLESTATES.PLAYREADY.value
-        time.sleep(1)
+        # After conversion and file is ready, wait until the video plays out
+        while APPSTATE != POSSIBLESTATES.PLAYREADY.value:
+            time.sleep(0.05)
         on_play()
     except Exception as e:
         print(e)
