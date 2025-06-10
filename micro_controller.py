@@ -27,7 +27,7 @@ except AttributeError:
 
 # Configuration
 INACTIVITY_TIMEOUT = 120  # seconds
-WAITFORINFOVIDEOPLAY = 18 # seconds wating for the video
+WAITFORINFOVIDEOPLAY = 5 # seconds wating for the video
 
 RECORD_SECONDS = 10 # Duration of recording in seconds
 SAMPLE_RATE = 44100 # Sample rate in Hz check with microphone
@@ -150,11 +150,11 @@ def wait_for_converted_file(converted_filename):
 
     while curtime-initime < WAITFORINFOVIDEOPLAY and not cancelFLAG: # we need to wait for the video to play
         # this could be cancellable
-        time.sleep(0.5)
+        time.sleep(0.25)
         curtime = time.time()
 
     temp_listener.stop()
-    
+
     if cancelFLAG:
         cancelFLAG = False
     APPSTATE = POSSIBLESTATES.PLAYREADY.value
