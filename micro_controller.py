@@ -27,6 +27,7 @@ except AttributeError:
 
 # Configuration
 INACTIVITY_TIMEOUT = 120  # seconds
+WAITFORINFOVIDEOPLAY = 18 # seconds wating for the video
 
 RECORD_SECONDS = 10 # Duration of recording in seconds
 SAMPLE_RATE = 44100 # Sample rate in Hz check with microphone
@@ -133,7 +134,7 @@ def wait_for_converted_file(converted_filename):
     print(f"[✓] Converted file detected: {converted_filename}")
     curtime = time.time()
     print(f"[ ] Waiting for video to play")
-    while curtime-initime < 20: # we need to wait for the video to play
+    while curtime-initime < WAITFORINFOVIDEOPLAY: # we need to wait for the video to play
         # this could be cancellable
         time.sleep(0.5)
         curtime = time.time()
