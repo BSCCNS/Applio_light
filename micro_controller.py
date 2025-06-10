@@ -77,6 +77,7 @@ class POSSIBLESTATES(Enum):
 
 # Global control flags
 APPSTATE = POSSIBLESTATES.IDLE.value
+cancelFLAG = False
 playback_gain = 1.25
 last_file_created = None
 current_pitch = 0
@@ -118,7 +119,7 @@ def send_volume_levels(audio_queue, stop_event):
         print(line, end='\r', flush=True)  # Only update the current line
 
 def wait_for_converted_file(converted_filename):
-    global APPSTATE, POSSIBLESTATES, last_file_created
+    global APPSTATE, POSSIBLESTATES, last_file_created, cancelFLAG
     on_activity()    
     APPSTATE = POSSIBLESTATES.CONVERTING.value # TODO check
     print(f"[*] Waiting for {converted_filename} to appear... (press ctrl-X to cancel)")
@@ -134,10 +135,28 @@ def wait_for_converted_file(converted_filename):
     print(f"[✓] Converted file detected: {converted_filename}")
     curtime = time.time()
     print(f"[ ] Waiting for video to play")
-    while curtime-initime < WAITFORINFOVIDEOPLAY: # we need to wait for the video to play
+    # --- Add this block: temporary hotkey listener for cancel ---
+    cancel_event = threading.Event()
+    def on_cancel():
+        global cancelFLAG
+        cancelFLAG = True
+        cancel_event.set()
+        print("[x] Video cancelled by user.")
+
+    temp_listener = keyboard.GlobalHotKeys({
+        '<ctrl>+x': on_cancel,
+    })
+    temp_listener.start()    
+
+    while curtime-initime < WAITFORINFOVIDEOPLAY and not cancelFLAG: # we need to wait for the video to play
         # this could be cancellable
         time.sleep(0.5)
         curtime = time.time()
+
+    temp_listener.stop()
+    
+    if cancelFLAG:
+        cancelFLAG = False
     APPSTATE = POSSIBLESTATES.PLAYREADY.value
     send_message(READYTOPLAY) ## Tell Unreal Engine we are ready to play
     print(f"[✓] Video finished")
@@ -338,6 +357,9 @@ def reset_state():
         listener.stop()
     start_hotkeys()
 
+def raise_cancel_flag():
+    global cancelFLAG
+    cancelFLAG = True
 
 def inactivity_watcher():
     global APPSTATE, POSSIBLESTATES, listener, last_activity
@@ -352,13 +374,7 @@ def inactivity_watcher():
 
 def start_hotkeys():
     global listener, APPSTATE, POSSIBLESTATES
-    print("Global Hotkey")
-    print("  Ctrl+R: Record")
-    print("  Ctrl+P: Play last file")
-    print("  Ctrl+X: Cancel recording/playback")
-    print("  Ctrl+G: Decrease volume")
-    print("  Ctrl+H: Increase volume")    
-    print("  Ctrl+C: Exit")
+    print("Press a key to skip the idle state")
 
     def dispatcher(order):
         def inner(): # time.sleep(1)
@@ -370,8 +386,15 @@ def start_hotkeys():
                 APPSTATE = POSSIBLESTATES.INTRO.value
             elif APPSTATE == POSSIBLESTATES.INTRO.value:
                 send_message(READYTORECORD)
-                time.sleep(1)
+                time.sleep(1.5)
                 print("[ ] Intro skipped, ready to record")
+                print("  Ctrl+R: Record")
+                print("  Ctrl+P: Play last file")
+                print("  Ctrl+X: Cancel recording/playback")
+                print("  Ctrl+G: Decrease volume")
+                print("  Ctrl+H: Increase volume")    
+                print("  Ctrl+C: Exit")
+
                 APPSTATE = POSSIBLESTATES.RECREADY.value
             elif APPSTATE == POSSIBLESTATES.RECREADY.value:
                 #on_record()
@@ -380,6 +403,8 @@ def start_hotkeys():
             elif APPSTATE == POSSIBLESTATES.PLAYREADY.value:
                 if (order=="play"):
                     on_play()
+                if (order=="cancel"):
+                    raise_cancel_flag()
             elif APPSTATE == POSSIBLESTATES.PLAYEND.value:
                 if (order=="play"):
                     on_play()
