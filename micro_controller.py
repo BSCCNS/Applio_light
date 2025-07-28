@@ -1,5 +1,4 @@
 
-
 import sounddevice as sd
 import pandas as pd
 import numpy as np
@@ -33,8 +32,7 @@ RECORD_SECONDS = 10 # Duration of recording in seconds
 SAMPLE_RATE = 44100 # Sample rate in Hz check with microphone
 CHANNELS = 1 # Number of audio channels (1 for mono, 2 for stereo)
 BLOCKSIZE = 1024 #4096 # Block size for audio processing, smaller uses more cpu but gives faster response
-SAMPLEWIDTH = 3 # 24 bits per sample, better wavs
-
+BITSPERSAMPLE = 24 # 24 bits per sample, better wavs
 THRESHOLD_DB = -30
 
 GAIN = 100
@@ -204,17 +202,17 @@ def play_wav(filename):
     
 def save_to_wav(filename, audio_np):
     on_activity()
-    if SAMPLEWIDTH == 3:
+    if BITSPERSAMPLE == 24:
         # difficult to save 24-bit directly, use a library
         sf.write(filename, audio_np, SAMPLE_RATE, subtype='PCM_24')
-    elif SAMPLEWIDTH == 2:
+    elif BITSPERSAMPLE == 16:
         audio_np = (audio_np * 32767).astype(np.int16)  # Convert to 16-bit
         with wave.open(filename, 'wb') as wf:
             wf.setnchannels(CHANNELS)
             wf.setsampwidth(2)
             wf.setframerate(SAMPLE_RATE)
             wf.writeframes(audio_np.tobytes())
-    if SAMPLEWIDTH == 4:
+    if BITSPERSAMPLE == 32:
         # Convert float32 [-1, 1] to int32
         audio_int32 = np.clip(audio_np * 2147483647, -2147483648, 2147483647).astype(np.int32)
         with wave.open(filename, 'wb') as wf:
@@ -353,9 +351,9 @@ def reset_state():
     APPSTATE = POSSIBLESTATES.IDLE.value
     send_message(RESET)    
     # Restart hotkeys
-    if listener:
-        listener.stop()
-    start_hotkeys()
+    # if listener:
+    #     listener.stop()
+    # start_hotkeys()
 
 def raise_cancel_flag():
     global cancelFLAG
@@ -374,6 +372,10 @@ def inactivity_watcher():
 
 def start_hotkeys():
     global listener, APPSTATE, POSSIBLESTATES
+    if listener:
+        listener.stop()
+        time.sleep(0.1)  # Give time for the listener to stop
+
     print("Press a key to skip the idle state")
 
     def dispatcher(order):
@@ -386,16 +388,15 @@ def start_hotkeys():
                 APPSTATE = POSSIBLESTATES.INTRO.value
             elif APPSTATE == POSSIBLESTATES.INTRO.value:
                 send_message(READYTORECORD)
-                time.sleep(1.5)
+                APPSTATE = POSSIBLESTATES.RECREADY.value
+                #time.sleep(1.5)
                 print("[ ] Intro skipped, ready to record")
                 print("  Ctrl+R: Record")
                 print("  Ctrl+P: Play last file")
                 print("  Ctrl+X: Cancel recording/playback")
                 print("  Ctrl+G: Decrease volume")
                 print("  Ctrl+H: Increase volume")    
-                print("  Ctrl+C: Exit")
-
-                APPSTATE = POSSIBLESTATES.RECREADY.value
+                print("  Ctrl+C: Exit")                
             elif APPSTATE == POSSIBLESTATES.RECREADY.value:
                 #on_record()
                 if (order=="record"):
@@ -436,7 +437,7 @@ def main():
         threading.Thread(target=inactivity_watcher, daemon=True).start()
         try:
             while True:
-                time.sleep(1)
+                pass
         except KeyboardInterrupt:
             print("Exiting...")
             break
