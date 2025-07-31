@@ -17,6 +17,7 @@ noisereduce
 pedalboard
 stftpitchshift
 soxr
+sounddevice
 
 # Machine learning and deep learning
 omegaconf>=2.0.6; sys_platform == 'darwin' 
@@ -34,6 +35,7 @@ transformers==4.44.2
 matplotlib==3.7.2
 tensorboard
 gradio==5.23.1
+pynput
 
 # Miscellaneous utilities
 certifi>=2023.07.22; sys_platform == 'darwin'  
