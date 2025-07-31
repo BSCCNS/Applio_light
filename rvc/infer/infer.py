@@ -253,7 +253,9 @@ class VoiceConverter:
             sid (int, optional): Speaker ID. Default is 0.
             **kwargs: Additional keyword arguments.
         """
+        print("Getting model",model_path)
         self.get_vc(model_path, sid)
+        print("Getting model",model_path,self.vc,self.loaded_model,os.getcwd())
         try:
             start_time = time.time()
             print(f"Converting audio '{audio_input_path}'...")
@@ -469,6 +471,9 @@ class VoiceConverter:
             if os.path.isfile(weight_root)
             else None
         )
+        if self.cpt is None:
+            print(f"Model file '{weight_root}' not found or is not a valid file.")
+            
 
     def setup_network(self):
         """
