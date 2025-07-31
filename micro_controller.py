@@ -35,7 +35,7 @@ BLOCKSIZE = 1024 #4096 # Block size for audio processing, smaller uses more cpu 
 BITSPERSAMPLE = 24 # 24 bits per sample, better wavs
 THRESHOLD_DB = -30
 
-GAIN = 100
+GAIN = 4000
 ROOTFOLDER = Path.absolute(Path("./audio/"))
 SMOOTHORDER = 3
 SMOOTHWINDOW = 80 # 10s*44100/BLOCKSIZE is the total amount of points, we want this window to be at least 5% ?  
@@ -185,7 +185,7 @@ def play_wav(filename):
         if end >= len(data):
             APPSTATE = POSSIBLESTATES.PLAYEND.value
             raise sd.CallbackStop()
-        
+
     callback.pos = 0
     try:
         APPSTATE = POSSIBLESTATES.PLAYING.value
@@ -199,7 +199,7 @@ def play_wav(filename):
         APPSTATE = POSSIBLESTATES.PLAYEND.value
         print("[*] Playback finished")
         pass
-    
+
 def save_to_wav(filename, audio_np):
     on_activity()
     if BITSPERSAMPLE == 24:
@@ -262,7 +262,7 @@ def record_audio():
         send_message(STOPRECORDING)
         print(f"[*] Saving recording")          
         audio_np = np.concatenate(audio_data, axis=0)
-        
+
         save_to_wav(filename, audio_np)
         print(f"[✓] Saved to {filename}")          
 
@@ -296,7 +296,7 @@ def record_audio():
         on_play()
     except Exception as e:
         print(e)
- 
+
 
 def on_record():
     global APPSTATE, POSSIBLESTATES
@@ -317,7 +317,7 @@ def on_play():
     else:
         print("[x] No file to play.")
 
-           
+
 def set_system_volume(percent):
     # percent: 0-100
     volume = int(percent)
@@ -372,11 +372,11 @@ def inactivity_watcher():
 
 def start_hotkeys():
     global listener, APPSTATE, POSSIBLESTATES
+    print("Press a key to skip the idle state")
     if listener:
+        print("[*] Stopping previous hotkeys listener...")
         listener.stop()
         time.sleep(0.1)  # Give time for the listener to stop
-
-    print("Press a key to skip the idle state")
 
     def dispatcher(order):
         def inner(): # time.sleep(1)
@@ -388,7 +388,6 @@ def start_hotkeys():
                 APPSTATE = POSSIBLESTATES.INTRO.value
             elif APPSTATE == POSSIBLESTATES.INTRO.value:
                 send_message(READYTORECORD)
-                APPSTATE = POSSIBLESTATES.RECREADY.value
                 #time.sleep(1.5)
                 print("[ ] Intro skipped, ready to record")
                 print("  Ctrl+R: Record")
@@ -396,7 +395,9 @@ def start_hotkeys():
                 print("  Ctrl+X: Cancel recording/playback")
                 print("  Ctrl+G: Decrease volume")
                 print("  Ctrl+H: Increase volume")    
-                print("  Ctrl+C: Exit")                
+                print("  Ctrl+C: Exit")
+
+                APPSTATE = POSSIBLESTATES.RECREADY.value
             elif APPSTATE == POSSIBLESTATES.RECREADY.value:
                 #on_record()
                 if (order=="record"):
@@ -411,7 +412,7 @@ def start_hotkeys():
                     on_play()
                 elif (order=="record"):
                     send_message(READYTORECORD)
-                    time.sleep(1)
+                    # time.sleep(1)
                     print("[ ] Ready to record again")
                     APPSTATE = POSSIBLESTATES.RECREADY.value
                 elif (order=="exit"):
@@ -431,16 +432,14 @@ def start_hotkeys():
     })
     listener.start()
 
-def main():
-    while True:
-        start_hotkeys()
-        threading.Thread(target=inactivity_watcher, daemon=True).start()
-        try:
-            while True:
-                pass
-        except KeyboardInterrupt:
-            print("Exiting...")
-            break
+def main():    
+    start_hotkeys()
+    threading.Thread(target=inactivity_watcher, daemon=True).start()
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("Exiting...")
 
 if __name__ == "__main__":
     main()
