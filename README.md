@@ -2,34 +2,32 @@
 
 ### 1. Installation
 
-Run the installation script based on your operating system:
+(Tested on MacOS)
 
-- **Windows:** Double-click `run-install.bat`.
-- **Linux/macOS:** Execute `run-install.sh`.
+Clone this repository
 
-This creates the venv and places a .venv/ folder inside the project folder. 
+Create empty environment with python 3.10
 
-### 2. Running Applio
+$ ./run-install.sh
 
-Checkout the `original-version` branch. Start Applio using:
+This creates the folder .venv inside the repo folder. You can deactivate the original environment, and activate the applio venv by
 
-- **Windows:** Double-click `run-applio.bat`.
-- **Linux/macOS:** Run `run-applio.sh`.
-
-This launches the Gradio interface in your default browser.
-
-### 3. Script 
-
-To convert an audio in wav format, produce the features file, and send features to unreal via UDP
-
-```
 $ source .venv/bin/activate
-$ python infer_script.py --input_path <input_path> --output_path <output_path> --pitch <pitch>
-```
 
-Here pitch is an int between -24, 24
+The first time only, run this script to download all pre-trained models
 
-### 4. Communications with Unreal 
+$ ./run-applio.sh
+
+This will open the applio app in the web browser, you can close it since we will not use it
+
+### 2. Installation
+
+To run the expanded voices backend app, execute
+
+$ export PYTORCH_ENABLE_MPS_FALLBACK=1
+$ python micro_controller.py
+
+### Communications with Unreal (maybe outdate?)
 
 - **Waveform:** real time while user is recording audio:
 
