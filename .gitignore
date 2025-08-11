@@ -20,9 +20,10 @@ assets/audios
 assets/datasets
 assets/features
 logs
+!logs/voice_models/
 rvc/models
 env
 venv
 .venv
 .DS_Store
-*.sav
+*.savmaria-20.pth

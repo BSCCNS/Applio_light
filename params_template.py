@@ -1,6 +1,7 @@
 params = {#'input_path': 'assets/audios/tomas_vowels.wav', 
           #'output_path': 'assets/audios/tomas_vowels_output.wav', 
-          'pth_path': 'logs/maria-20/maria-20.pth', 
+          #'pth_path': 'logs/maria-20/maria-20.pth',
+          'pth_path': 'assets/voice_models/maria-20/maria-20.pth', 
           'index_path': '', 
           #'pitch': 0, 
           'index_rate': 0.75, 
