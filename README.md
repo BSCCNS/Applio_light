@@ -25,9 +25,10 @@ This will open the applio app in the web browser, you can close it since we will
 To run the expanded voices backend app, execute
 
 $ export PYTORCH_ENABLE_MPS_FALLBACK=1
+
 $ python micro_controller.py
 
-### Communications with Unreal (maybe outdate?)
+### Communications with Unreal (double check if outdated?)
 
 - **Waveform:** real time while user is recording audio:
 
