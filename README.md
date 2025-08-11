@@ -20,7 +20,7 @@ $ ./run-applio.sh
 
 This will open the applio app in the web browser, you can close it since we will not use it
 
-### 2. Installation
+### 2. Execution
 
 To run the expanded voices backend app, execute
 
