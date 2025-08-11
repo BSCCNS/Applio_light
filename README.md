@@ -6,7 +6,7 @@
 
 Clone this repository
 
-Create empty environment with python 3.10
+Create empty environment with python 3.10, and activate it. 
 
 $ ./run-install.sh
 
@@ -18,7 +18,7 @@ The first time only, run this script to download all pre-trained models
 
 $ ./run-applio.sh
 
-This will open the applio app in the web browser, you can close it since we will not use it
+At then end of the process, this will open the applio app in the web browser. You can close it since we will not use it
 
 ### 2. Execution
 
