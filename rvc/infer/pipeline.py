@@ -6,7 +6,6 @@ import torch
 import torch.nn.functional as F
 import torchcrepe
 import faiss
-import librosa
 import numpy as np
 from scipy import signal
 from torch import Tensor
@@ -24,13 +23,13 @@ import logging
 
 logging.getLogger("faiss").setLevel(logging.WARNING)
 
-import itertools
-def unique_file(basename, ext):
-    actualname = f"{basename}_00000.{ext}" 
-    c = itertools.count()
-    while os.path.exists(actualname):
-        actualname = f"{basename}_{str(next(c)).zfill(5)}.{ext}" 
-    return actualname
+# import itertools
+# def unique_file(basename, ext):
+#     actualname = f"{basename}_00000.{ext}" 
+#     c = itertools.count()
+#     while os.path.exists(actualname):
+#         actualname = f"{basename}_{str(next(c)).zfill(5)}.{ext}" 
+#     return actualname
 
 # Constants for high-pass filter
 FILTER_ORDER = 5
@@ -41,7 +40,8 @@ bh, ah = signal.butter(
 )
 
 # UMAP SURROGATE
-path_umap_surr = '/Users/tomasandrade/Documents/BSC/ICHOIR/Applio_light/assets/umap/umap_n100_3D_SURR.sav'
+print(os.getcwd())
+path_umap_surr = './assets/umap/umap_n100_3D_SURR.sav'
 umap_surrogate = joblib.load(path_umap_surr)
 
 input_audio_path2wav = {}
@@ -477,7 +477,9 @@ class Pipeline:
             pathname = "/Users/tomasandrade/Documents/BSC/ICHOIR/Applio_light/assets/features"
 
             print("Feats del modelo again:",feats_pretodo.shape)
-            fname = unique_file(f"{pathname}/feats_3d_{basefilename}", "csv")
+            #fname = unique_file(f"{pathname}/feats_3d_{basefilename}", "csv")
+            fname = basefilename[:-4]+"_feats_3d.csv"
+            #fname = f"{pathname}/feats_3d_{basefilename}.csv"
             exportable = pd.DataFrame(feats_pretodo[0].cpu())
 
             # TODO read value of padding from parameters above
