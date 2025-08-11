@@ -8,15 +8,21 @@ Clone this repository
 
 Create empty environment with python 3.10, and activate it. 
 
+```
 $ ./run-install.sh
+```
 
 This creates the folder .venv inside the repo folder. You can deactivate the original environment, and activate the applio venv by
 
+```
 $ source .venv/bin/activate
+```
 
 The first time only, run this script to download all pre-trained models
 
+```
 $ ./run-applio.sh
+```
 
 At then end of the process, this will open the applio app in the web browser. You can close it since we will not use it
 
@@ -24,9 +30,10 @@ At then end of the process, this will open the applio app in the web browser. Yo
 
 To run the expanded voices backend app, execute
 
+```
 $ export PYTORCH_ENABLE_MPS_FALLBACK=1
-
 $ python micro_controller.py
+```
 
 ### Communications with Unreal (double check if outdated?)
 
