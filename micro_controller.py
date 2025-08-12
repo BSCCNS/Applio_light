@@ -27,6 +27,7 @@ except AttributeError:
 # Configuration
 INACTIVITY_TIMEOUT = 120  # seconds
 WAITFORINFOVIDEOPLAY = 12 # seconds wating for the video
+WAITFORINTROVIDEOPLAY = 13 # seconds wating for the video
 
 RECORD_SECONDS = 10 # Duration of recording in seconds
 SAMPLE_RATE = 44100 # Sample rate in Hz check with microphone
@@ -345,6 +346,41 @@ def decrease_system_volume():
     subprocess.run(["osascript", "-e", f"set volume output volume {volume}"])
 
 
+
+def play_intro():
+    global APPSTATE, POSSIBLESTATES, last_file_created, cancelFLAG
+    on_activity()    
+    curtime = time.time()
+    initime = curtime
+    print(f"[ ] Playing intro video... (press ctrl-X to cancel)")
+    cancelFLAG = False
+    cancel_event = threading.Event()
+    def on_cancel():
+        global cancelFLAG
+        cancelFLAG = True
+        cancel_event.set()        
+
+    temp_listener = keyboard.GlobalHotKeys({
+        '<ctrl>+x': on_cancel,
+    })
+    temp_listener.start()    
+
+    while curtime-initime < WAITFORINTROVIDEOPLAY and not cancelFLAG: # we need to wait for the video to play
+        # this could be cancellable
+        time.sleep(0.25)
+        print("waiting", curtime-initime)
+        curtime = time.time()
+
+    temp_listener.stop()
+
+    if cancelFLAG:
+        print("[x] Intro cancelled by user.")
+        cancelFLAG = False
+    else:
+        print("[ ] Intro finished, ready to record")
+    APPSTATE = POSSIBLESTATES.RECREADY.value
+
+
 def reset_state():
     global APPSTATE, POSSIBLESTATES, last_file_created, listener
     last_file_created = None
@@ -386,16 +422,16 @@ def start_hotkeys():
                 send_message(PLAYINTRO)
                 print("[ ] Playing intro...")
                 APPSTATE = POSSIBLESTATES.INTRO.value
-            elif APPSTATE == POSSIBLESTATES.INTRO.value or APPSTATE == POSSIBLESTATES.RECREADY.value:
-                #send_message(READYTORECORD)
-                #time.sleep(1.5)
-                print("[ ] Intro skipped, ready to record")
+                play_intro()   
                 print("  Ctrl+R: Record")
                 print("  Ctrl+P: Play last file")
                 print("  Ctrl+X: Cancel recording/playback")
                 print("  Ctrl+G: Decrease volume")
                 print("  Ctrl+H: Increase volume")    
-                print("  Ctrl+C: Exit")
+                print("  Ctrl+C: Exit")                             
+            elif APPSTATE == POSSIBLESTATES.INTRO.value or APPSTATE == POSSIBLESTATES.RECREADY.value:
+                #send_message(READYTORECORD)
+                #time.sleep(1.5)
                 #APPSTATE = POSSIBLESTATES.RECREADY.value
             #elif APPSTATE == POSSIBLESTATES.RECREADY.value:
                 #on_record()
