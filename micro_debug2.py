@@ -26,7 +26,7 @@ except AttributeError:
 
 # Configuration
 INACTIVITY_TIMEOUT = 120  # seconds
-WAITFORINFOVIDEOPLAY = 12 # seconds wating for the video
+WAITFORINFOVIDEOPLAY = 17 # seconds wating for the video
 
 RECORD_SECONDS = 10 # Duration of recording in seconds
 SAMPLE_RATE = 44100 # Sample rate in Hz check with microphone
@@ -35,7 +35,7 @@ BLOCKSIZE = 1024 #4096 # Block size for audio processing, smaller uses more cpu 
 BITSPERSAMPLE = 24 # 24 bits per sample, better wavs
 THRESHOLD_DB = -30
 
-GAIN = 4000
+GAIN = 400
 ROOTFOLDER = Path.absolute(Path("./audio/"))
 SMOOTHORDER = 3
 SMOOTHWINDOW = 80 # 10s*44100/BLOCKSIZE is the total amount of points, we want this window to be at least 5% ?  
@@ -386,8 +386,8 @@ def start_hotkeys():
                 send_message(PLAYINTRO)
                 print("[ ] Playing intro...")
                 APPSTATE = POSSIBLESTATES.INTRO.value
-            elif APPSTATE == POSSIBLESTATES.INTRO.value or APPSTATE == POSSIBLESTATES.RECREADY.value:
-                #send_message(READYTORECORD)
+            elif APPSTATE == POSSIBLESTATES.INTRO.value:
+                send_message(READYTORECORD)
                 #time.sleep(1.5)
                 print("[ ] Intro skipped, ready to record")
                 print("  Ctrl+R: Record")
@@ -396,8 +396,9 @@ def start_hotkeys():
                 print("  Ctrl+G: Decrease volume")
                 print("  Ctrl+H: Increase volume")    
                 print("  Ctrl+C: Exit")
-                #APPSTATE = POSSIBLESTATES.RECREADY.value
-            #elif APPSTATE == POSSIBLESTATES.RECREADY.value:
+
+                APPSTATE = POSSIBLESTATES.RECREADY.value
+            elif APPSTATE == POSSIBLESTATES.RECREADY.value:
                 #on_record()
                 if (order=="record"):
                     on_record()
@@ -431,14 +432,16 @@ def start_hotkeys():
     })
     listener.start()
 
-def main():    
-    start_hotkeys()
-    threading.Thread(target=inactivity_watcher, daemon=True).start()
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        print("Exiting...")
+def main():
+    while True:
+        start_hotkeys()
+        threading.Thread(target=inactivity_watcher, daemon=True).start()
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            print("Exiting...")
+            break
 
 if __name__ == "__main__":
     main()

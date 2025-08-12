@@ -26,7 +26,7 @@ except AttributeError:
 
 # Configuration
 INACTIVITY_TIMEOUT = 120  # seconds
-WAITFORINFOVIDEOPLAY = 12 # seconds wating for the video
+WAITFORINFOVIDEOPLAY = 17 # seconds wating for the video
 
 RECORD_SECONDS = 10 # Duration of recording in seconds
 SAMPLE_RATE = 44100 # Sample rate in Hz check with microphone
@@ -386,8 +386,8 @@ def start_hotkeys():
                 send_message(PLAYINTRO)
                 print("[ ] Playing intro...")
                 APPSTATE = POSSIBLESTATES.INTRO.value
-            elif APPSTATE == POSSIBLESTATES.INTRO.value or APPSTATE == POSSIBLESTATES.RECREADY.value:
-                #send_message(READYTORECORD)
+            elif APPSTATE == POSSIBLESTATES.INTRO.value:
+                send_message(READYTORECORD)
                 #time.sleep(1.5)
                 print("[ ] Intro skipped, ready to record")
                 print("  Ctrl+R: Record")
@@ -396,8 +396,9 @@ def start_hotkeys():
                 print("  Ctrl+G: Decrease volume")
                 print("  Ctrl+H: Increase volume")    
                 print("  Ctrl+C: Exit")
-                #APPSTATE = POSSIBLESTATES.RECREADY.value
-            #elif APPSTATE == POSSIBLESTATES.RECREADY.value:
+
+                APPSTATE = POSSIBLESTATES.RECREADY.value
+            elif APPSTATE == POSSIBLESTATES.RECREADY.value:
                 #on_record()
                 if (order=="record"):
                     on_record()
