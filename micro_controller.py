@@ -428,7 +428,8 @@ def start_hotkeys():
                 print("  Ctrl+X: Cancel recording/playback")
                 print("  Ctrl+G: Decrease volume")
                 print("  Ctrl+H: Increase volume")    
-                print("  Ctrl+C: Exit")                             
+                print("  Ctrl+C: Exit")     
+                send_message(READYTORECORD)
             elif APPSTATE == POSSIBLESTATES.INTRO.value or APPSTATE == POSSIBLESTATES.RECREADY.value:
                 #send_message(READYTORECORD)
                 #time.sleep(1.5)
