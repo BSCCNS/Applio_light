@@ -121,7 +121,7 @@ def wait_for_converted_file(converted_filename):
     global APPSTATE, POSSIBLESTATES, last_file_created, cancelFLAG
     on_activity()    
     APPSTATE = POSSIBLESTATES.CONVERTING.value # TODO check
-    print(f"[*] Waiting for {converted_filename} to appear... (press ctrl-X to cancel)")
+    print(f"[*] Waiting for {converted_filename} to appear... ")
     while not os.path.exists(converted_filename):
         time.sleep(0.05)        
         # if wait_cancel_event.is_set(): # ESTO SIRVE SI HAY THREADS
@@ -134,25 +134,11 @@ def wait_for_converted_file(converted_filename):
     print(f"[✓] Converted file detected: {converted_filename}")
     curtime = time.time()
     print(f"[ ] Waiting for video to play")
-    # --- Add this block: temporary hotkey listener for cancel ---
-    cancel_event = threading.Event()
-    def on_cancel():
-        global cancelFLAG
-        cancelFLAG = True
-        cancel_event.set()
-        print("[x] Video cancelled by user.")
-
-    temp_listener = keyboard.GlobalHotKeys({
-        '<ctrl>+x': on_cancel,
-    })
-    temp_listener.start()    
 
     while curtime-initime < WAITFORINFOVIDEOPLAY and not cancelFLAG: # we need to wait for the video to play
         # this could be cancellable
         time.sleep(0.25)
         curtime = time.time()
-
-    temp_listener.stop()
 
     if cancelFLAG:
         cancelFLAG = False
@@ -234,7 +220,7 @@ def record_audio():
     APPSTATE = POSSIBLESTATES.RECORDING.value
     send_message(RECORDING)
 
-    print(f"[*] Recording started. Press ctrl-X to cancel.")  
+    print(f"[*] Recording started. ")  
 
     udp_thread = threading.Thread(target=send_volume_levels, args=(audio_queue, stop_event))
     udp_thread.start()
@@ -354,25 +340,23 @@ def play_intro():
     initime = curtime
     print(f"[ ] Playing intro video... (press ctrl-X to cancel)")
     cancelFLAG = False
-    cancel_event = threading.Event()
-    def on_cancel():
-        global cancelFLAG
-        cancelFLAG = True
-        cancel_event.set()        
+    #cancel_event = threading.Event()
+    #def on_cancel():
+    #    global cancelFLAG
+    #    cancelFLAG = True
+    #    cancel_event.set()        
 
-    temp_listener = keyboard.GlobalHotKeys({
-        '<ctrl>+x': on_cancel,
-        '<ctrl>+r': on_cancel,
-        '<ctrl>+p': on_cancel,
-    })
-    temp_listener.start()    
+    #temp_listener = keyboard.GlobalHotKeys({
+    #    '<ctrl>+x': on_cancel,
+    #})
+    #temp_listener.start()    
 
     while curtime-initime < WAITFORINTROVIDEOPLAY and not cancelFLAG: # we need to wait for the video to play
         # this could be cancellable
         time.sleep(0.25)
         curtime = time.time()
 
-    temp_listener.stop()
+    #temp_listener.stop()
 
     if cancelFLAG:
         print("[x] Intro cancelled by user.")
