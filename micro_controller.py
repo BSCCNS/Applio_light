@@ -433,7 +433,7 @@ def start_hotkeys():
                 #send_message(READYTORECORD)
                 #time.sleep(1.5)
                 #APPSTATE = POSSIBLESTATES.RECREADY.value
-            #elif APPSTATE == POSSIBLESTATES.RECREADY.value:
+                #elif APPSTATE == POSSIBLESTATES.RECREADY.value:
                 #on_record()
                 if (order=="record"):
                     on_record()
