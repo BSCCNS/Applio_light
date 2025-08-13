@@ -26,8 +26,8 @@ except AttributeError:
 
 # Configuration
 INACTIVITY_TIMEOUT = 120  # seconds
-WAITFORINFOVIDEOPLAY = 12 # seconds wating for the video
-WAITFORINTROVIDEOPLAY = 13 # seconds wating for the video
+WAITFORINFOVIDEOPLAY = 11 # seconds wating for the video
+WAITFORINTROVIDEOPLAY = 15 # seconds wating for the video
 
 RECORD_SECONDS = 10 # Duration of recording in seconds
 SAMPLE_RATE = 44100 # Sample rate in Hz check with microphone
@@ -362,13 +362,14 @@ def play_intro():
 
     temp_listener = keyboard.GlobalHotKeys({
         '<ctrl>+x': on_cancel,
+        '<ctrl>+r': on_cancel,
+        '<ctrl>+p': on_cancel,
     })
     temp_listener.start()    
 
     while curtime-initime < WAITFORINTROVIDEOPLAY and not cancelFLAG: # we need to wait for the video to play
         # this could be cancellable
         time.sleep(0.25)
-        print("waiting", curtime-initime)
         curtime = time.time()
 
     temp_listener.stop()
