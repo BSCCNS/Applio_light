@@ -68,3 +68,27 @@ Send a series of these, and at the end a finish message in case the length is va
 	"data": [1.0, 1.0, 1.0]}
 }
 ```
+
+### 2. Keyboard configuration
+
+Install the controller of the mini-keyboard (if you are using it) from here:
+
+https://github.com/kriomant/ch57x-keyboard-tool/tree/master
+
+These are the instructions:
+```
+brew install rustup-init && rustup-init
+
+cargo install ch57x-keyboard-tool
+```
+
+Then these commands to install the keyboard
+`ch57x-keyboard-tool upload keyboard.yaml`
+
+These others are useful too
+
+````
+ch57x-keyboard-tool show-keys
+ch57x-keyboard-tool validate keyboard.yaml
+```
+````
