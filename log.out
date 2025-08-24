@@ -7,6 +7,7 @@
 2025-08-13 11:38:40,230 - INFO - ------------- logs output to log.out
 2025-08-13 11:38:40,387 - INFO - Fundamental frequency detected 135.75353035663156, computing pitch shift
 2025-08-13 11:38:40,387 - INFO - Updating pitch to 12
+<<<<<<< HEAD
 2025-08-13 15:07:50,329 - INFO - ------------- logs output to log.out
 2025-08-13 15:07:52,141 - INFO - Fundamental frequency detected 77.58356251560934, computing pitch shift
 2025-08-13 15:07:52,141 - INFO - Updating pitch to 22
@@ -31,3 +32,59 @@
 2025-08-24 18:01:10,340 - INFO - ------------- logs output to log.out
 2025-08-24 18:01:12,184 - INFO - Fundamental frequency detected 74.04186153297483, computing pitch shift
 2025-08-24 18:01:12,184 - INFO - Updating pitch to 22
+=======
+2025-08-13 14:37:49,189 - INFO - ------------- logs output to log.out
+2025-08-13 14:37:49,275 - INFO - Fundamental frequency detected 112.84558239243086, computing pitch shift
+2025-08-13 14:37:49,275 - INFO - Updating pitch to 15
+2025-08-13 14:44:19,081 - INFO - ------------- logs output to log.out
+2025-08-13 14:44:19,158 - INFO - Fundamental frequency detected 111.1987438571277, computing pitch shift
+2025-08-13 14:44:19,158 - INFO - Updating pitch to 15
+2025-08-13 14:44:53,852 - INFO - ------------- logs output to log.out
+2025-08-13 14:44:53,943 - INFO - Fundamental frequency detected 121.55522216740965, computing pitch shift
+2025-08-13 14:44:53,943 - INFO - Updating pitch to 14
+2025-08-13 15:14:59,581 - INFO - ------------- logs output to log.out
+2025-08-13 15:14:59,732 - INFO - Fundamental frequency detected 123.09995098819377, computing pitch shift
+2025-08-13 15:14:59,732 - INFO - Updating pitch to 14
+2025-08-13 15:16:19,065 - INFO - ------------- logs output to log.out
+2025-08-13 15:16:19,154 - INFO - Fundamental frequency detected 115.06159338366331, computing pitch shift
+2025-08-13 15:16:19,155 - INFO - Updating pitch to 15
+2025-08-13 15:17:07,097 - INFO - ------------- logs output to log.out
+2025-08-13 15:17:07,187 - INFO - Fundamental frequency detected 146.79710664571704, computing pitch shift
+2025-08-13 15:17:07,187 - INFO - Updating pitch to 10
+2025-08-13 15:18:20,864 - INFO - ------------- logs output to log.out
+2025-08-13 15:18:20,955 - INFO - Fundamental frequency detected 121.316441383832, computing pitch shift
+2025-08-13 15:18:20,955 - INFO - Updating pitch to 14
+2025-08-13 15:19:26,301 - INFO - ------------- logs output to log.out
+2025-08-13 15:19:26,394 - INFO - Fundamental frequency detected 121.94660743703727, computing pitch shift
+2025-08-13 15:19:26,394 - INFO - Updating pitch to 14
+2025-08-13 15:21:42,929 - INFO - ------------- logs output to log.out
+2025-08-13 15:21:43,019 - INFO - Fundamental frequency detected 104.787306413319, computing pitch shift
+2025-08-13 15:21:43,019 - INFO - Updating pitch to 16
+2025-08-13 15:22:40,668 - INFO - ------------- logs output to log.out
+2025-08-13 15:22:40,758 - INFO - Fundamental frequency detected 112.11309358705368, computing pitch shift
+2025-08-13 15:22:40,758 - INFO - Updating pitch to 15
+2025-08-13 15:39:41,086 - INFO - ------------- logs output to log.out
+2025-08-13 15:39:41,178 - INFO - Fundamental frequency detected 116.26021713429283, computing pitch shift
+2025-08-13 15:39:41,178 - INFO - Updating pitch to 15
+2025-08-13 15:41:05,555 - INFO - ------------- logs output to log.out
+2025-08-13 15:41:05,647 - INFO - Fundamental frequency detected 111.96773687135979, computing pitch shift
+2025-08-13 15:41:05,647 - INFO - Updating pitch to 15
+2025-08-13 15:43:12,422 - INFO - ------------- logs output to log.out
+2025-08-13 15:43:12,513 - INFO - Fundamental frequency detected 109.49249596655056, computing pitch shift
+2025-08-13 15:43:12,513 - INFO - Updating pitch to 16
+2025-08-13 15:44:14,427 - INFO - ------------- logs output to log.out
+2025-08-13 15:44:14,517 - INFO - Fundamental frequency detected 110.04819881759121, computing pitch shift
+2025-08-13 15:44:14,517 - INFO - Updating pitch to 15
+2025-08-13 15:45:09,907 - INFO - ------------- logs output to log.out
+2025-08-13 15:45:10,000 - INFO - Fundamental frequency detected 112.9880323813692, computing pitch shift
+2025-08-13 15:45:10,000 - INFO - Updating pitch to 15
+2025-08-13 15:47:35,685 - INFO - ------------- logs output to log.out
+2025-08-13 15:47:35,776 - INFO - Fundamental frequency detected 106.96067974777267, computing pitch shift
+2025-08-13 15:47:35,776 - INFO - Updating pitch to 16
+2025-08-13 15:49:39,861 - INFO - ------------- logs output to log.out
+2025-08-13 15:49:39,948 - INFO - Fundamental frequency detected 114.13842828044682, computing pitch shift
+2025-08-13 15:49:39,948 - INFO - Updating pitch to 15
+2025-08-13 15:50:43,732 - INFO - ------------- logs output to log.out
+2025-08-13 15:50:43,818 - INFO - Fundamental frequency detected 112.1779625759876, computing pitch shift
+2025-08-13 15:50:43,818 - INFO - Updating pitch to 15
+>>>>>>> c4c4e2488ae9325168708d9ba8021b3b4f359feb
