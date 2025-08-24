@@ -2,6 +2,8 @@
 import sounddevice as sd
 import pandas as pd
 import numpy as np
+import sys
+import termios
 # parece que wave es el emas rapido https://github.com/bastibe/python-soundfile/issues/376
 import wave
 import soundfile as sf
@@ -13,6 +15,7 @@ import subprocess
 import shutil
 from pathlib import Path
 from pynput import keyboard
+#from pynput.keyboard import Key, Controller
 from scipy.signal import savgol_filter 
 from enum import Enum
 
@@ -26,8 +29,8 @@ except AttributeError:
 
 # Configuration
 INACTIVITY_TIMEOUT = 120  # seconds
-WAITFORINFOVIDEOPLAY = 11 # seconds wating for the video
-WAITFORINTROVIDEOPLAY = 15 # seconds wating for the video
+WAITFORINFOVIDEOPLAY = 12 # seconds wating for the video
+WAITFORINTROVIDEOPLAY = 13
 
 RECORD_SECONDS = 10 # Duration of recording in seconds
 SAMPLE_RATE = 44100 # Sample rate in Hz check with microphone
@@ -135,24 +138,24 @@ def wait_for_converted_file(converted_filename):
     curtime = time.time()
     print(f"[ ] Waiting for video to play")
     # --- Add this block: temporary hotkey listener for cancel ---
-    cancel_event = threading.Event()
-    def on_cancel():
-        global cancelFLAG
-        cancelFLAG = True
-        cancel_event.set()
-        print("[x] Video cancelled by user.")
+    # cancel_event = threading.Event()
+    # def on_cancel():
+    #     global cancelFLAG
+    #     cancelFLAG = True
+    #     cancel_event.set()
+    #     print("[x] Video cancelled by user.")
 
-    temp_listener = keyboard.GlobalHotKeys({
-        '<ctrl>+x': on_cancel,
-    })
-    temp_listener.start()    
+    # temp_listener = keyboard.GlobalHotKeys({
+    #     '<ctrl>+x': on_cancel,
+    # })
+    # temp_listener.start()    
 
-    while curtime-initime < WAITFORINFOVIDEOPLAY and not cancelFLAG: # we need to wait for the video to play
+    while curtime-initime < WAITFORINFOVIDEOPLAY: # and not cancelFLAG: # we need to wait for the video to play
         # this could be cancellable
         time.sleep(0.25)
         curtime = time.time()
 
-    temp_listener.stop()
+    # temp_listener.stop()
 
     if cancelFLAG:
         cancelFLAG = False
@@ -167,6 +170,7 @@ def play_wav(filename):
     blocksize = 1024  # Small block for responsive stop
 
     def callback(outdata, frames, time, status):
+        global APPSTATE, POSSIBLESTATES, playback_gain
         on_activity()
         # if play_cancel_event.is_set():
         #     send_message(RESET)  # Notify Unreal Engine we are stopping playback
@@ -195,10 +199,10 @@ def play_wav(filename):
             while callback.pos < len(data):
                 time.sleep(0.1)
         APPSTATE = POSSIBLESTATES.PLAYEND.value   
-        print("[*] Playback finished")     
+        print("[*] Playback finished, state set to PLAYEND")     
     except sd.CallbackStop:
         APPSTATE = POSSIBLESTATES.PLAYEND.value
-        print("[*] Playback finished")
+        print("[*] Playback cancelled, state set to PLAYEND")
         pass
 
 def save_to_wav(filename, audio_np):
@@ -302,7 +306,7 @@ def record_audio():
 def on_record():
     global APPSTATE, POSSIBLESTATES
     on_activity()
-    APPSTATE == POSSIBLESTATES.RECORDING.value
+    APPSTATE = POSSIBLESTATES.RECORDING.value
     threading.Thread(target=record_audio).start()
 
 
@@ -347,23 +351,24 @@ def decrease_system_volume():
 
 
 
-def play_intro():
-    global APPSTATE, POSSIBLESTATES, last_file_created, cancelFLAG
+def wait_for_intro_to_finish():
+    global APPSTATE, POSSIBLESTATES, cancelFLAG
     on_activity()    
     curtime = time.time()
     initime = curtime
-    print(f"[ ] Playing intro video... (press ctrl-X to cancel)")
+    print(f"[*] Waiting for intro to play (press ctrl-X to cancel)")
     cancelFLAG = False
     cancel_event = threading.Event()
     def on_cancel():
         global cancelFLAG
         cancelFLAG = True
-        cancel_event.set()        
+        cancel_event.set()
+        print("[x] Intro cancelled by user.")
 
     temp_listener = keyboard.GlobalHotKeys({
         '<ctrl>+x': on_cancel,
-        '<ctrl>+r': on_cancel,
-        '<ctrl>+p': on_cancel,
+        'r': on_cancel,
+        '<ctrl>+p': on_cancel
     })
     temp_listener.start()    
 
@@ -375,10 +380,22 @@ def play_intro():
     temp_listener.stop()
 
     if cancelFLAG:
-        print("[x] Intro cancelled by user.")
         cancelFLAG = False
-    else:
-        print("[ ] Intro finished, ready to record")
+    APPSTATE = POSSIBLESTATES.RECREADY.value
+    send_message(READYTORECORD) ## Tell Unreal Engine we are ready to play
+
+
+def play_intro():
+    global APPSTATE, POSSIBLESTATES
+    on_activity()
+    print("[ ] Playing intro...")
+    APPSTATE = POSSIBLESTATES.INTRO.value    
+    # Wait for conversion
+    wait_thread = threading.Thread(target=wait_for_intro_to_finish)
+    wait_thread.start()
+    wait_thread.join()
+    while APPSTATE != POSSIBLESTATES.RECREADY.value:
+        time.sleep(0.1)    
     APPSTATE = POSSIBLESTATES.RECREADY.value
 
 
@@ -392,9 +409,11 @@ def reset_state():
     #     listener.stop()
     # start_hotkeys()
 
+
 def raise_cancel_flag():
     global cancelFLAG
     cancelFLAG = True
+
 
 def inactivity_watcher():
     global APPSTATE, POSSIBLESTATES, listener, last_activity
@@ -413,29 +432,20 @@ def start_hotkeys():
     if listener:
         print("[*] Stopping previous hotkeys listener...")
         listener.stop()
-        time.sleep(0.1)  # Give time for the listener to stop
+        # Give time for the listener to stop
+        time.sleep(0.1)  
 
     def dispatcher(order):
         def inner(): # time.sleep(1)
-            global APPSTATE, POSSIBLESTATES
+            global APPSTATE, POSSIBLESTATES, last_file_created
+            print(f"-- [ ] Received command: {order}, current state: {APPSTATE}")
             on_activity()
             if APPSTATE == POSSIBLESTATES.IDLE.value:
                 send_message(PLAYINTRO)
-                print("[ ] Playing intro...")
                 APPSTATE = POSSIBLESTATES.INTRO.value
-                play_intro()   
-                print("  Ctrl+R: Record")
-                print("  Ctrl+P: Play last file")
-                print("  Ctrl+X: Cancel recording/playback")
-                print("  Ctrl+G: Decrease volume")
-                print("  Ctrl+H: Increase volume")    
-                print("  Ctrl+C: Exit")     
+                play_intro()  
                 send_message(READYTORECORD)
-            elif APPSTATE == POSSIBLESTATES.INTRO.value or APPSTATE == POSSIBLESTATES.RECREADY.value:
-                #send_message(READYTORECORD)
-                #time.sleep(1.5)
-                #APPSTATE = POSSIBLESTATES.RECREADY.value
-                #elif APPSTATE == POSSIBLESTATES.RECREADY.value:
+            elif APPSTATE == POSSIBLESTATES.RECREADY.value:
                 #on_record()
                 if (order=="record"):
                     on_record()
@@ -449,19 +459,26 @@ def start_hotkeys():
                     on_play()
                 elif (order=="record"):
                     send_message(READYTORECORD)
-                    # time.sleep(1)
-                    print("[ ] Ready to record again")
+                    print("[ ] Ready to record again, press Ctrl+R")
                     APPSTATE = POSSIBLESTATES.RECREADY.value
                 elif (order=="exit"):
                     APPSTATE = POSSIBLESTATES.IDLE.value
                     print("[X] Reset to idle")
                     last_file_created = None
                     send_message(RESET)
-
+            else:
+                print(f"[x] Command '{order}' not allowed in state {APPSTATE}.")
+            print(f"-- [ ] Finished command, new state: {APPSTATE}")
+            print("  R: Record")
+            print("  Ctrl+P: Play last file")
+            print("  Ctrl+X: Cancel recording/playback")
+            print("  Ctrl+G: Decrease volume")
+            print("  Ctrl+H: Increase volume")    
+            print("  Ctrl+C: Exit")
         return inner
 
     listener = keyboard.GlobalHotKeys({
-        '<ctrl>+r': dispatcher('record'),
+        'r': dispatcher('record'),
         '<ctrl>+p': dispatcher('play'),
         '<ctrl>+x': dispatcher('exit'),
         '<ctrl>+g': decrease_system_volume,
