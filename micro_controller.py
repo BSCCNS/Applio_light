@@ -440,7 +440,7 @@ def start_hotkeys():
             print(f"-- [ ] Received command: {order}, current state: {APPSTATE}")
             on_activity()
             if APPSTATE == POSSIBLESTATES.IDLE.value:
-                if (order != "record"):
+                if (order == "play"):
                     send_message(PLAYINTRO)
                     APPSTATE = POSSIBLESTATES.INTRO.value
                     play_intro()  
