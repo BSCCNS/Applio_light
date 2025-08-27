@@ -29,7 +29,7 @@ except AttributeError:
 
 # Configuration
 INACTIVITY_TIMEOUT = 120  # seconds
-WAITFORINFOVIDEOPLAY = 12 # seconds wating for the video
+WAITFORINFOVIDEOPLAY = 10 # seconds wating for the video
 WAITFORINTROVIDEOPLAY = 13
 
 RECORD_SECONDS = 10 # Duration of recording in seconds
@@ -352,9 +352,6 @@ def wait_for_intro_to_finish():
         cancel_event.set()
         print("[x] Intro cancelled by user.")
 
-    def press_r():
-        print('User pressed r, ignoring')
-
     temp_listener = keyboard.GlobalHotKeys({
         '<ctrl>+x': on_cancel,
         'r': on_cancel,
@@ -427,7 +424,7 @@ def inactivity_watcher():
 
 def start_hotkeys():
     global listener, APPSTATE, POSSIBLESTATES
-    print("Press a key to skip the idle state")
+    print("Press PLAY to skip the idle state")
     if listener:
         print("[*] Stopping previous hotkeys listener...")
         listener.stop()
@@ -466,7 +463,7 @@ def start_hotkeys():
                     on_play()
                 elif (order=="record"):
                     send_message(READYTORECORD)
-                    print("[ ] Ready to record again, press Ctrl+R")
+                    print("[ ] Ready to record again, press R")
                     APPSTATE = POSSIBLESTATES.RECREADY.value
                 elif (order=="exit"):
                     APPSTATE = POSSIBLESTATES.IDLE.value
