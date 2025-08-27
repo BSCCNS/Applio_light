@@ -76,6 +76,7 @@ class POSSIBLESTATES(Enum):
     PLAYREADY = "PLAYREADY"
     PLAYING = "PLAYING"
     PLAYEND = "PLAYEND"
+    INTROFINISHED = "INTROFINISHED"
 
 # Global control flags
 APPSTATE = POSSIBLESTATES.IDLE.value
@@ -356,7 +357,7 @@ def wait_for_intro_to_finish():
 
     temp_listener = keyboard.GlobalHotKeys({
         '<ctrl>+x': on_cancel,
-        'r': press_r,
+        'r': on_cancel,
         'p': on_cancel
     })
     temp_listener.start()    
@@ -366,14 +367,15 @@ def wait_for_intro_to_finish():
         time.sleep(0.25)
         curtime = time.time()
 
-    #temp_listener.stop()
-    print(f'-------- Exited the while loop, cancel flag is {cancelFLAG}')
+    temp_listener.stop()
+    print(f'-------- Exited the while loop, leaving wait_for_intro_to_finish, cancel flag is {cancelFLAG}')
 
     if cancelFLAG:
         cancelFLAG = False
 
-    APPSTATE = POSSIBLESTATES.RECREADY.value
-    send_message(READYTORECORD)
+    APPSTATE = POSSIBLESTATES.INTROFINISHED.value
+    print(f'-------- updated APPSTATE to {APPSTATE}')
+    #send_message(READYTORECORD)
      ## Tell Unreal Engine we are ready to play
 
 
@@ -386,8 +388,9 @@ def play_intro():
     wait_thread = threading.Thread(target=wait_for_intro_to_finish)
     wait_thread.start()
     wait_thread.join()
-    while APPSTATE != POSSIBLESTATES.RECREADY.value:
-        time.sleep(0.05)    
+    # while APPSTATE != POSSIBLESTATES.RECREADY.value:
+    #     time.sleep(0.15)
+    #     print('Im only sleeping in play intro')    
     #APPSTATE = POSSIBLESTATES.RECREADY.value
 
 def reset_state():
@@ -437,9 +440,17 @@ def start_hotkeys():
                     APPSTATE = POSSIBLESTATES.INTRO.value
                     play_intro()  
                     #send_message(READYTORECORD)
+                    #APPSTATE = POSSIBLESTATES.RECREADY.value
+
+            elif APPSTATE == POSSIBLESTATES.INTROFINISHED.value:
+                print('Intro finished, sending messages')
+                send_message(READYTORECORD)
+                APPSTATE = POSSIBLESTATES.RECREADY.value
+
             elif APPSTATE == POSSIBLESTATES.RECREADY.value:
                 if (order=="record"):
                     on_record()
+
             elif APPSTATE == POSSIBLESTATES.PLAYREADY.value:
                 if (order=="play"):
                     on_play()
@@ -460,12 +471,12 @@ def start_hotkeys():
             else:
                 print(f"[x] Command '{order}' not allowed in state {APPSTATE}.")
             print(f"-- [ ] Finished command, new state: {APPSTATE}")
-            print("  R: Record")
-            print("  P: Play last file")
-            print("  Ctrl+X: Cancel recording/playback")
-            print("  Ctrl+G: Decrease volume")
-            print("  Ctrl+H: Increase volume")    
-            print("  Ctrl+C: Exit")
+            # print("  R: Record")
+            # print("  P: Play last file")
+            # print("  Ctrl+X: Cancel recording/playback")
+            # print("  Ctrl+G: Decrease volume")
+            # print("  Ctrl+H: Increase volume")    
+            # print("  Ctrl+C: Exit")
         return inner
 
     listener = keyboard.GlobalHotKeys({
