@@ -76,7 +76,7 @@ class POSSIBLESTATES(Enum):
     PLAYREADY = "PLAYREADY"
     PLAYING = "PLAYING"
     PLAYEND = "PLAYEND"
-    INTROFINISHED = "INTROFINISHED"
+    INTROCANCELLED = "INTROCANCELLED"
 
 # Global control flags
 APPSTATE = POSSIBLESTATES.IDLE.value
@@ -371,13 +371,18 @@ def wait_for_intro_to_finish():
     print(f'-------- Exited the while loop, leaving wait_for_intro_to_finish, cancel flag is {cancelFLAG}')
 
     if cancelFLAG:
+        APPSTATE = POSSIBLESTATES.INTROCANCELLED.value
+        print(f'-------- updated APPSTATE to {APPSTATE}')
+    else:
+        print('Intro played until the end, ready to record')
+        send_message(READYTORECORD)
+        APPSTATE = POSSIBLESTATES.RECREADY.value
+
+    if cancelFLAG:
         cancelFLAG = False
 
-    APPSTATE = POSSIBLESTATES.INTROFINISHED.value
-    print(f'-------- updated APPSTATE to {APPSTATE}')
     #send_message(READYTORECORD)
      ## Tell Unreal Engine we are ready to play
-
 
 def play_intro():
     global APPSTATE, POSSIBLESTATES
@@ -442,8 +447,8 @@ def start_hotkeys():
                     #send_message(READYTORECORD)
                     #APPSTATE = POSSIBLESTATES.RECREADY.value
 
-            elif APPSTATE == POSSIBLESTATES.INTROFINISHED.value:
-                print('Intro finished, sending messages')
+            elif APPSTATE == POSSIBLESTATES.INTROCANCELLED.value:
+                print('Intro cancelled, ready to record, sending messages')
                 send_message(READYTORECORD)
                 APPSTATE = POSSIBLESTATES.RECREADY.value
 
