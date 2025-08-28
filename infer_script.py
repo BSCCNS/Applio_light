@@ -23,10 +23,13 @@ logging.info(f'------------- logs output to {LOGS_PATH}')
 
 
 F_MARIA = 277
-GATE_DB = 25
+GATE_DB = -25
 
 def relative_pitch(av):
-    return int(12*np.log2(F_MARIA/av))
+    if av is None:
+        return None
+    else:
+        return int(12*np.log2(F_MARIA/av))
 
 arguments = sys.argv[1:]
 
@@ -96,6 +99,9 @@ def find_relative_frequency(audio_path, gate_db = -25):
 
 audio_path = input_params['input_path']
 f0_rel_filter, f0_wrong = find_relative_frequency(audio_path, gate_db = GATE_DB)
+
+logging.info(f'f0_rel_filter: {f0_rel_filter}')
+logging.info(f'f0_wrong: {f0_wrong}')
 
 pitch_shift = relative_pitch(f0_rel_filter)
 pitch_shift_wrong =relative_pitch(f0_wrong)
