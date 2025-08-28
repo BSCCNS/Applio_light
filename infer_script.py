@@ -4,7 +4,7 @@ import sys
 
 from audio_preprocessing import utils as u
 
-# import numpy as np
+import numpy as np
 # import pandas as pd
 # import librosa
 
