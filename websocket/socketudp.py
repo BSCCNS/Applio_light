@@ -65,6 +65,7 @@ class SocketUDP():
         logging.debug(f"Message sent")
 
 def send_message(msg):
+    print(f'websocket upd sending message {msg}')
     d = {'type': msg,
         'message': {'data': 1}}
     with SocketUDP("localhost", debug= None) as socket:    
