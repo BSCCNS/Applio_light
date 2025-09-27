@@ -39,9 +39,6 @@ bh, ah = signal.butter(
     N=FILTER_ORDER, Wn=CUTOFF_FREQUENCY, btype="highpass", fs=SAMPLE_RATE
 )
 
-# UMAP SURROGATE
-path_umap_surr = '/Users/tomasandrade/Documents/BSC/ICHOIR/Applio_light/assets/umap/umap_n100_3D_SURR.sav'
-umap_surrogate = joblib.load(path_umap_surr)
 
 input_audio_path2wav = {}
 
@@ -467,32 +464,7 @@ class Pipeline:
             assert feats.dim() == 1, feats.dim()
             feats = feats.view(1, -1).to(self.device)
 
-            feats = model(feats)["last_hidden_state"]
-
-            ##########################################################
-            # EXTRACT FEATURES PRE INDEX
-            feats_pretodo = feats.clone()
-
-            pathname = "/Users/tomasandrade/Documents/BSC/ICHOIR/Applio_light/assets/features"
-
-            print("Feats del modelo again:",feats_pretodo.shape)
-            #fname = unique_file(f"{pathname}/feats_3d_{basefilename}", "csv")
-            fname = basefilename[:-4]+"_feats_3d.csv"
-            #fname = f"{pathname}/feats_3d_{basefilename}.csv"
-            exportable = pd.DataFrame(feats_pretodo[0].cpu())
-
-            # TODO read value of padding from parameters above
-            # TODO simplify extraction of feats (no need to go through pandas, etc)
-            PADDING = 50
-            exportable = exportable[PADDING:-PADDING] # remove padding 
-
-            feats_3D = umap_surrogate.predict(exportable.values)
-            df_feats_3D = pd.DataFrame(feats_3D)
-
-            print(f'Saving umap-projected 3d features to {fname}')
-            df_feats_3D.to_csv(fname)
-            ##########################################################
-            
+            feats = model(feats)["last_hidden_state"]            
             feats = (
                 model.final_proj(feats[0]).unsqueeze(0) if version == "v1" else feats
             )
@@ -538,7 +510,7 @@ class Pipeline:
                 .numpy()
             )
             # clean up
-            del feats, feats0, p_len, feats_pretodo
+            del feats, feats0, p_len 
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
         return audio1
