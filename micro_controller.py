@@ -46,6 +46,8 @@ SMOOTHWINDOW = 80 # 10s*44100/BLOCKSIZE is the total amount of points, we want t
 
 INPUTFOLDER = ROOTFOLDER / "input"
 OUTPUTFOLDER = ROOTFOLDER / "output"
+INJECTED_FILE = ROOTFOLDER / "input/injections/JA-Soprano-test.wav"
+
 # Ensure input and output directories exist
 INPUTFOLDER.mkdir(parents=True, exist_ok=True)
 OUTPUTFOLDER.mkdir(parents=True, exist_ok=True)
@@ -255,9 +257,10 @@ def record_audio():
         print(f"[*] Saving recording")          
         audio_np = np.concatenate(audio_data, axis=0)
 
-        save_to_wav(filename, audio_np)
-        print(f"[✓] Saved to {filename}")          
-
+        #save_to_wav(filename, audio_np)
+        shutil.copy2(INJECTED_FILE, filename)
+        print(f"[✓] HACK : saving injected file {INJECTED_FILE} to {filename}")
+         
         ### SEND TO CONVERSION
         APPSTATE = POSSIBLESTATES.CONVERTING.value
         send_message(CONVERTING)
