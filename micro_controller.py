@@ -46,7 +46,8 @@ SMOOTHWINDOW = 80 # 10s*44100/BLOCKSIZE is the total amount of points, we want t
 
 INPUTFOLDER = ROOTFOLDER / "input"
 OUTPUTFOLDER = ROOTFOLDER / "output"
-INJECTED_FILE = ROOTFOLDER / "input/injections/JA-Soprano-test.wav"
+#INJECTED_FILE = ROOTFOLDER / "input/injections/JA-Soprano-test.wav"
+INJECTED_FILE = ROOTFOLDER / "input/injections/zz-touch-harmony_output_10s.wav"
 
 # Ensure input and output directories exist
 INPUTFOLDER.mkdir(parents=True, exist_ok=True)

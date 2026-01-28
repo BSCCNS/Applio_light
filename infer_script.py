@@ -38,19 +38,21 @@ arguments = sys.argv[1:]
 input_params = {
 'input_path': arguments[0], 
 'output_path': arguments[1], 
-'pitch': int(arguments[2])}
+'pitch': 0}
 
-f0_rel_filter, _ = u.find_relative_frequency(input_params['input_path'], 
-                                            gate_db = GATE_DB)
+print(f'Using injection, no pitch update')
 
-pitch_shift = relative_pitch(f0_rel_filter)
-logging.info(f'Fundamental frequency detected {f0_rel_filter}, pitch shift: {pitch_shift}')
+# f0_rel_filter, _ = u.find_relative_frequency(input_params['input_path'], 
+#                                             gate_db = GATE_DB)
 
-if f0_rel_filter is not None:
-    print(f'Updating pitch to {pitch_shift}')
-    input_params.update({'pitch': pitch_shift})
+# pitch_shift = relative_pitch(f0_rel_filter)
+# logging.info(f'Fundamental frequency detected {f0_rel_filter}, pitch shift: {pitch_shift}')
 
-params.update(input_params)
+# if f0_rel_filter is not None:
+#     print(f'Updating pitch to {pitch_shift}')
+#     input_params.update({'pitch': pitch_shift})
+
+# params.update(input_params)
 
 print(params)
 
